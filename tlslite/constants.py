@@ -129,8 +129,10 @@ class CipherSuite:
     TLS_RSA_WITH_AES_128_CBC_SHA = 0x002F
     TLS_RSA_WITH_AES_256_CBC_SHA = 0x0035
     TLS_RSA_WITH_RC4_128_SHA = 0x0005
-    
+
     TLS_RSA_WITH_RC4_128_MD5 = 0x0004
+
+    TLS_DHE_RSA_WITH_AES_128_CBC_SHA = 0x0033
 
     TLS_DH_ANON_WITH_AES_128_CBC_SHA = 0x0034
     TLS_DH_ANON_WITH_AES_256_CBC_SHA = 0x003A
@@ -149,6 +151,7 @@ class CipherSuite:
     aes128Suites.append(TLS_RSA_WITH_AES_128_CBC_SHA)
     aes128Suites.append(TLS_DH_ANON_WITH_AES_128_CBC_SHA)
     aes128Suites.append(TLS_RSA_WITH_AES_128_CBC_SHA256)
+    aes128Suites.append(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)
 
     aes256Suites = []
     aes256Suites.append(TLS_SRP_SHA_WITH_AES_256_CBC_SHA)
@@ -174,6 +177,7 @@ class CipherSuite:
     shaSuites.append(TLS_RSA_WITH_RC4_128_SHA)
     shaSuites.append(TLS_DH_ANON_WITH_AES_128_CBC_SHA)
     shaSuites.append(TLS_DH_ANON_WITH_AES_256_CBC_SHA)
+    shaSuites.append(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)
     
     sha256Suites = []
     sha256Suites.append(TLS_RSA_WITH_AES_128_CBC_SHA256)

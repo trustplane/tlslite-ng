@@ -932,6 +932,16 @@ class ServerKeyExchange(HandshakeMsg):
             self.dh_p = bytesToNumber(p.getVarBytes(2))
             self.dh_g = bytesToNumber(p.getVarBytes(2))
             self.dh_Ys = bytesToNumber(p.getVarBytes(2))
+        elif self.cipherSuite in [CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA]:
+            start_index = p.index
+            self.dh_p = bytesToNumber(p.getVarBytes(2))
+            self.dh_g = bytesToNumber(p.getVarBytes(2))
+            self.dh_Ys = bytesToNumber(p.getVarBytes(2))
+            end_index = p.index
+            self.raw_data = p.bytes[start_index:end_index]
+            self.sig_hash = p.get(1)
+            self.sig_alg = p.get(1)
+            self.signature = p.getVarBytes(2)
         p.stopLengthCheck()
         return self
 
@@ -1029,6 +1039,8 @@ class ClientKeyExchange(HandshakeMsg):
                 raise AssertionError()
         elif self.cipherSuite in CipherSuite.anonSuites:
             w.addVarSeq(numberToByteArray(self.dh_Yc), 1, 2)            
+        elif self.cipherSuite in [CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA]:
+            w.addVarSeq(numberToByteArray(self.dh_Yc), 1, 2)
         else:
             raise AssertionError()
         return self.postWrite(w)
