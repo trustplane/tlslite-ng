@@ -100,6 +100,18 @@ class TLSRecordLayer(object):
     @ivar etm: if the record layer uses encrypt-then-mac construct defined
     in RFC 7366 (read only)
 
+    @type blockSize: int
+    @ivar blockSize: maximum size of data to be sent in a single record
+    layer message. Note that after encryption is established (generally
+    after handshake protocol has finished) the actual amount of data written
+    to network socket will be larger because of the record layer header,
+    padding, or encryption overhead. It can be set to low value (so that
+    there is not fragmentation on Ethernet, IP and TCP level) at the
+    beginning of connection to reduce latency and set to protocol max (2**14)
+    to maximise throughput after sending few kiB of data. Setting to values
+    greater than 2**14 (16384) will cause the connection to be dropped by
+    RFC compliant peers.
+
     @sort: __init__, read, readAsync, write, writeAsync, close, closeAsync,
     getCipherImplementation, getCipherName
     """
@@ -155,6 +167,9 @@ class TLSRecordLayer(object):
 
         #Whatever to do Encrypt and MAC or MAC and Encrypt
         self.etm = False
+
+        #Limit the size of outgoing records to following size
+        self.blockSize = 16384 # 2**14
 
     def clearReadBuffer(self):
         self._readBuffer = b''
@@ -269,6 +284,9 @@ class TLSRecordLayer(object):
         1 if it is waiting to write to the socket, or will raise
         StopIteration if the write operation has completed.
 
+        @type s: bytearray
+        @param s: application data bytes to send
+
         @rtype: iterable
         @return: A generator; see above for details.
         """
@@ -276,23 +294,10 @@ class TLSRecordLayer(object):
             if self.closed:
                 raise TLSClosedConnectionError("attempt to write to closed connection")
 
-            index = 0
-            blockSize = 16384
-            randomizeFirstBlock = True
-            while 1:
-                startIndex = index * blockSize
-                endIndex = startIndex + blockSize
-                if startIndex >= len(s):
-                    break
-                if endIndex > len(s):
-                    endIndex = len(s)
-                block = bytearray(s[startIndex : endIndex])
-                applicationData = ApplicationData().create(block)
-                for result in self._sendMsg(applicationData, \
-                                            randomizeFirstBlock):
-                    yield result
-                randomizeFirstBlock = False #only on 1st message
-                index += 1
+            applicationData = ApplicationData().create(bytearray(s))
+            for result in self._sendMsg(applicationData, \
+                                        randomizeFirstBlock=True):
+                yield result
         except GeneratorExit:
             raise
         except Exception:
@@ -659,32 +664,50 @@ class TLSRecordLayer(object):
                                        randomizeFirstBlock = False):
                 yield result
 
-        b = msg.write()
+        buf = msg.write()
 
         # If a 1-byte message was passed in, and we "split" the
         # first(only) byte off above, we may have a 0-length msg:
-        if len(b) == 0:
+        if len(buf) == 0:
             return
 
         contentType = msg.contentType
 
+        #Fragment big messages
+        while len(buf) > self.blockSize:
+            newB = buf[:self.blockSize]
+            buf = buf[self.blockSize:]
+
+            class FakeMsg(object):
+                def __init__(self, msg_type, data):
+                    self.contentType = msg_type
+                    self.data = data
+
+                def write(self):
+                    return self.data
+
+            msgFragment = FakeMsg(msg.contentType, newB)
+            for result in self._sendMsg(msgFragment,
+                                        randomizeFirstBlock=False):
+                yield result
+
         #Update handshake hashes
         if contentType == ContentType.handshake:
-            self._handshake_md5.update(compat26Str(b))
-            self._handshake_sha.update(compat26Str(b))
-            self._handshake_sha256.update(compat26Str(b))
+            self._handshake_md5.update(compat26Str(buf))
+            self._handshake_sha.update(compat26Str(buf))
+            self._handshake_sha256.update(compat26Str(buf))
 
         if self.etm:
-            b = self._encryptThenMAC(b, contentType)
+            buf = self._encryptThenMAC(buf, contentType)
         else:
-            b = self._macThenEncrypt(b, contentType)
+            buf = self._macThenEncrypt(buf, contentType)
 
         #Add record header and send
-        r = RecordHeader3().create(self.version, contentType, len(b))
-        s = r.write() + b
+        record = RecordHeader3().create(self.version, contentType, len(buf))
+        sockBuf = record.write() + buf
         while 1:
             try:
-                bytesSent = self.sock.send(s) #Might raise socket.error
+                bytesSent = self.sock.send(sockBuf) #Might raise socket.error
             except socket.error as why:
                 if why.args[0] in (errno.EWOULDBLOCK, errno.EAGAIN):
                     yield 1
@@ -721,9 +744,9 @@ class TLSRecordLayer(object):
                         # the remote side is doing, just go ahead and
                         # raise the socket.error
                         raise
-            if bytesSent == len(s):
+            if bytesSent == len(sockBuf):
                 return
-            s = s[bytesSent:]
+            sockBuf = sockBuf[bytesSent:]
             yield 1
 
 
