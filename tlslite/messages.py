@@ -954,12 +954,18 @@ class ServerKeyExchange(HandshakeMsg):
             w.addVarSeq(numberToByteArray(self.srp_B), 1, 2)
             if self.cipherSuite in CipherSuite.srpCertSuites:
                 w.addVarSeq(self.signature, 1, 2)
-        elif self.cipherSuite in CipherSuite.anonSuites:
+        elif self.cipherSuite in CipherSuite.anonSuites or\
+                self.cipherSuite in [CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA]:
             w.addVarSeq(numberToByteArray(self.dh_p), 1, 2)
             w.addVarSeq(numberToByteArray(self.dh_g), 1, 2)
             w.addVarSeq(numberToByteArray(self.dh_Ys), 1, 2)
-            if self.cipherSuite in []: # TODO support for signed_params
+            # TODO support for signed_params
+            if self.cipherSuite in [CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA]:
+                w.add(self.sig_hash, 1)
+                w.add(self.sig_alg, 1)
                 w.addVarSeq(self.signature, 1, 2)
+        else:
+            assert(False)
         return self.postWrite(w)
 
     def hash(self, clientRandom, serverRandom):
@@ -970,6 +976,22 @@ class ServerKeyExchange(HandshakeMsg):
             return MD5(bytes) + SHA1(bytes)
         finally:
             self.cipherSuite = oldCipherSuite
+
+    def sign(self, client_random, server_random, private_key):
+        w = Writer()
+        w.addVarSeq(numberToByteArray(self.dh_p), 1, 2)
+        w.addVarSeq(numberToByteArray(self.dh_g), 1, 2)
+        w.addVarSeq(numberToByteArray(self.dh_Ys), 1, 2)
+
+        sig_input = client_random + server_random + w.bytes
+
+        self.signature = private_key.hashAndSign(sig_input)
+
+        if not private_key.hashAndVerify(self.signature, sig_input):
+            raise ValueError()
+
+        self.sig_hash = 2 # sha1
+        self.sig_alg = 1 # rsa
 
 class ServerHelloDone(HandshakeMsg):
     def __init__(self):
@@ -1019,7 +1041,8 @@ class ClientKeyExchange(HandshakeMsg):
                     p.getFixBytes(len(p.bytes)-p.index)
             else:
                 raise AssertionError()
-        elif self.cipherSuite in CipherSuite.anonSuites:
+        elif self.cipherSuite in CipherSuite.anonSuites or \
+                self.cipherSuite in [CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA]:
             self.dh_Yc = bytesToNumber(p.getVarBytes(2))            
         else:
             raise AssertionError()
