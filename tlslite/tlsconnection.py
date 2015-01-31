@@ -214,7 +214,7 @@ class TLSConnection(TLSRecordLayer):
 
     def handshakeClientCert(self, certChain=None, privateKey=None,
                             session=None, settings=None, checker=None,
-                            nextProtos=None, reqTack=True, serverName="",
+                            nextProtos=None, reqTack=True, serverName=None,
                             async=False):
         """Perform a certificate-based handshake in the role of client.
 
