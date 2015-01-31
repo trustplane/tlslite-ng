@@ -912,9 +912,123 @@ class TACKExtension(TLSExtension):
 
         return self
 
+class EllipticCurvesExtension(TLSExtension):
+    def __init__(self):
+        self.curve_list = None
+
+    def __repr__(self):
+        """
+        @rtype: str
+        """
+        return "EllipticCurvesExtension(curve_list={0!r})".format(\
+                self.curve_list)
+
+    def addCurve(self, curve_id):
+        """
+        @type curve_id: int
+        """
+        if self.curve_list is None:
+            self.curve_list = []
+        self.curve_list += [curve_id]
+
+    @property
+    def ext_type(self):
+        """
+        @rtype: int
+        """
+        return ExtensionType.elliptic_curves
+
+    @property
+    def ext_data(self):
+        """
+        @rtype: bytearray
+        """
+        if self.curve_list is None:
+            return bytearray(0)
+
+        w = Writer()
+        w.addVarSeq(self.curve_list, 2, 2)
+        return w.bytes
+
+    def create(self, curves):
+        """
+        @type curves: list of int
+        @rtype EllipticCurvesExtension
+        """
+        self.curve_list = curves
+        return self
+
+    def parse(self, p):
+        """
+        @type p: Parser
+        """
+        if p.getRemainingLength() == 0:
+            self.curve_list = None
+        else:
+            self.curve_list = p.getVarList(2, 2)
+        return self
+
+class ECPointFormatsExtension(TLSExtension):
+    def __init__(self):
+        self.point_formats = None
+
+    def __repr__(self):
+        """
+        @rtype: str
+        """
+        return "ECPointFormatsExtension(point_formats={0!r})".format(\
+                self.point_formats)
+
+    def addFormat(self, format_id):
+        """
+        @type format_id: int
+        """
+        if self.point_formats is None:
+            self.point_formats = []
+        self.point_formats += [format_id]
+
+    @property
+    def ext_type(self):
+        """
+        @rtype: int
+        """
+        return ExtensionType.ec_point_formats
+
+    @property
+    def ext_data(self):
+        """
+        @rtype: bytearray
+        """
+        if self.point_formats is None:
+            return bytearray(0)
+
+        w = Writer()
+        w.addVarSeq(self.point_formats, 1, 1)
+        return w.bytes
+
+    def create(self, formats):
+        """
+        @type formats: list of int
+        @rtype ECPointFormatsExtension
+        """
+        self.point_formats = formats
+        return self
+
+    def parse(self, p):
+        """
+        @type p: Parser
+        """
+        if p.getRemainingLength() == 0:
+            self.point_formats = None
+        else:
+            self.point_formats = p.getVarList(1, 1)
+        return self
+
 TLSExtension._universal_extensions = { ExtensionType.server_name : SNIExtension,
         ExtensionType.cert_type : ClientCertTypeExtension,
         ExtensionType.srp : SRPExtension,
+        ExtensionType.elliptic_curves : EllipticCurvesExtension,
+        ExtensionType.ec_point_formats : ECPointFormatsExtension,
         ExtensionType.supports_npn : NPNExtension }
 
 TLSExtension._server_extensions = {

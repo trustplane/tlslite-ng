@@ -5,9 +5,9 @@
 import unittest
 from tlslite.extensions import TLSExtension, SNIExtension, NPNExtension,\
         SRPExtension, ClientCertTypeExtension, ServerCertTypeExtension,\
-        TACKExtension
+        TACKExtension, EllipticCurvesExtension, ECPointFormatsExtension
 from tlslite.utils.codec import Parser
-from tlslite.constants import NameType
+from tlslite.constants import NameType, NamedCurve, ECPointFormat
 
 class TestTLSExtension(unittest.TestCase):
     def test___init__(self):
@@ -889,6 +889,123 @@ class TestTACKExtension(unittest.TestCase):
                 "signature=bytearray(b'\\x05'))"\
                 "])",
                 repr(tack_ext))
+
+class TestEllipticCurvesExtension(unittest.TestCase):
+    def test___init__(self):
+        ec = EllipticCurvesExtension()
+
+        self.assertIsInstance(ec, EllipticCurvesExtension)
+        self.assertEqual(10, ec.ext_type)
+        self.assertEqual(bytearray(0), ec.ext_data)
+        self.assertEqual(None, ec.curve_list)
+
+    def test___repr__(self):
+        ec = EllipticCurvesExtension().create([4,5,22])
+
+        self.assertEqual("EllipticCurvesExtension(curve_list=[4, 5, 22])",
+                repr(ec))
+
+    def test_create(self):
+        ec = EllipticCurvesExtension()
+        ec = ec.create([NamedCurve.secp256r1])
+
+        self.assertEqual(bytearray(b'\x00\x02\x00\x17'), ec.ext_data)
+        self.assertEqual([23], ec.curve_list)
+
+    def test_parse(self):
+        p = Parser(bytearray(
+            b'\x00\x04' +       # length
+            b'\x00\x13' +       # secp192r1
+            b'\x00\x15'))       # secp224r1
+
+        ec = EllipticCurvesExtension()
+        ec = ec.parse(p)
+
+        self.assertEqual([19, 21], ec.curve_list)
+
+    def test_parse_with_no_data(self):
+        p = Parser(bytearray(0))
+
+        ec = EllipticCurvesExtension()
+        ec = ec.parse(p)
+
+        self.assertEqual(None, ec.curve_list)
+
+    def test_parse_with_empty_array(self):
+        p = Parser(bytearray(2))
+
+        ec = EllipticCurvesExtension()
+        ec = ec.parse(p)
+
+        self.assertEqual([], ec.curve_list)
+
+    def test_parse_with_array_short_by_one(self):
+        p = Parser(bytearray(b'\x00\x02\x00'))
+
+        ec = EllipticCurvesExtension()
+        with self.assertRaises(SyntaxError):
+            ec.parse(p)
+
+class TestECPointFormatsExtension(unittest.TestCase):
+    def test___init__(self):
+        point_formats = ECPointFormatsExtension()
+
+        self.assertIsInstance(point_formats, ECPointFormatsExtension)
+        self.assertEqual(None, point_formats.point_formats)
+        self.assertEqual(11, point_formats.ext_type)
+        self.assertEqual(bytearray(0), point_formats.ext_data)
+
+    def test___repr__(self):
+        point_formats = ECPointFormatsExtension().create([6,1,8])
+
+        self.assertEqual("ECPointFormatsExtension(point_formats=[6, 1, 8])",
+                repr(point_formats))
+
+    def test_create(self):
+        point_formats = ECPointFormatsExtension()
+
+        point_formats = point_formats.create([0, 2, 1])
+
+        self.assertEqual([0, 2, 1], point_formats.point_formats)
+        self.assertEqual(bytearray(b'\x03\x00\x02\x01'), point_formats.ext_data)
+
+    def test_parse(self):
+        p = Parser(bytearray(
+            b'\x01' +       # length
+            b'\x00'         # uncompressed
+            ))
+
+        point_formats = ECPointFormatsExtension()
+
+        point_formats = point_formats.parse(p)
+
+        self.assertEqual([ECPointFormat.uncompressed],
+                point_formats.point_formats)
+        self.assertEqual(11, point_formats.ext_type)
+
+    def test_parse_with_no_data(self):
+        p = Parser(bytearray(0))
+
+        point_formats = ECPointFormatsExtension()
+
+        point_formats = point_formats.parse(p)
+
+        self.assertEqual(None, point_formats.point_formats)
+
+    def test_parse_with_empty_array(self):
+        p = Parser(bytearray(b'\x00'))
+
+        point_formats = ECPointFormatsExtension().parse(p)
+
+        self.assertEqual([], point_formats.point_formats)
+
+    def test_parse_with_array_short_by_one(self):
+        p = Parser(bytearray(b'\x02\x00'))
+
+        point_formats = ECPointFormatsExtension()
+
+        with self.assertRaises(SyntaxError):
+            point_formats.parse(p)
 
 if __name__ == '__main__':
     unittest.main()

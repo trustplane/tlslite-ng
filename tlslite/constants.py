@@ -44,9 +44,17 @@ class ExtensionType:    # RFC 6066 / 4366
     server_name = 0     # RFC 6066 / 4366
     srp = 12            # RFC 5054  
     cert_type = 9       # RFC 6091
+    elliptic_curves = 10 # RFC 4492
+    ec_point_formats = 11 # RFC 4492
     tack = 0xF300
     supports_npn = 13172
-    
+
+class NamedCurve:
+    secp256r1 = 23
+
+class ECPointFormat:
+    uncompressed = 0
+
 class NameType:
     host_name = 0
 
@@ -134,6 +142,8 @@ class CipherSuite:
 
     TLS_DHE_RSA_WITH_AES_128_CBC_SHA = 0x0033
 
+    TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA = 0xc013
+
     TLS_DH_ANON_WITH_AES_128_CBC_SHA = 0x0034
     TLS_DH_ANON_WITH_AES_256_CBC_SHA = 0x003A
 
@@ -152,6 +162,7 @@ class CipherSuite:
     aes128Suites.append(TLS_DH_ANON_WITH_AES_128_CBC_SHA)
     aes128Suites.append(TLS_RSA_WITH_AES_128_CBC_SHA256)
     aes128Suites.append(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)
+    aes128Suites.append(TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)
 
     aes256Suites = []
     aes256Suites.append(TLS_SRP_SHA_WITH_AES_256_CBC_SHA)
@@ -178,6 +189,7 @@ class CipherSuite:
     shaSuites.append(TLS_DH_ANON_WITH_AES_128_CBC_SHA)
     shaSuites.append(TLS_DH_ANON_WITH_AES_256_CBC_SHA)
     shaSuites.append(TLS_DHE_RSA_WITH_AES_128_CBC_SHA)
+    shaSuites.append(TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)
     
     sha256Suites = []
     sha256Suites.append(TLS_RSA_WITH_AES_128_CBC_SHA256)
