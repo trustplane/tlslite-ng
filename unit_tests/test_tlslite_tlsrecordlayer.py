@@ -191,7 +191,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         self.assertTrue(public_key.hashAndVerify(server_key_exchange.signature,
                 bytearray(32) + server_hello.random + server_key_exchange.raw_data))
 
-        dh_Xc = bytesToNumber(bytes(b'\x01' + b'\x00' * 31)) # client random
+        dh_Xc = bytesToNumber(bytearray(b'\x01' + b'\x00' * 31)) # client random
         dh_Yc = powMod(server_key_exchange.dh_g, dh_Xc, server_key_exchange.dh_p)
 
         client_key_exchange = ClientKeyExchange(
