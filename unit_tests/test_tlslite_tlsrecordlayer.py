@@ -9,9 +9,11 @@ from tlslite.tlsrecordlayer import TLSRecordLayer
 from tlslite.messages import ClientHello, ServerHello, Certificate, \
         ServerHelloDone, ClientKeyExchange, ChangeCipherSpec, Finished, \
         RecordHeader3, ServerKeyExchange
-from tlslite.extensions import TLSExtension
+from tlslite.extensions import TLSExtension, EllipticCurvesExtension, \
+        ECPointFormatsExtension
 from tlslite.constants import ContentType, HandshakeType, CipherSuite, \
-        CertificateType
+        CertificateType, NamedCurve, ECPointFormat, ExtensionType, \
+        HashAlgorithm, SignatureAlgorithm
 from tlslite.errors import TLSLocalAlert
 from tlslite.mathtls import calcMasterSecret, PRF_1_2
 from tlslite.x509 import X509
@@ -20,6 +22,8 @@ from tlslite.utils.keyfactory import parsePEMKey
 from tlslite.utils.codec import Parser
 from tlslite.utils.cryptomath import bytesToNumber, powMod, numberToByteArray, \
         getRandomSafePrime, getRandomNumber
+from ecdsa.ellipticcurve import Point
+from ecdsa.ecdsa import generator_256, curve_256
 
 class TestTLSRecordLayer(unittest.TestCase):
     def test___init__(self):
@@ -515,3 +519,176 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer.close()
 
+    #@unittest.skip("needs external TLS server")
+    def test_full_connection_with_external_server_using_ECDHE(self):
+
+        # TODO test is slow (100ms) move to integration test suite
+        #
+        # start a regular TLS server locally before running this test
+        # e.g.: openssl s_server -key localhost.key -cert localhost.crt
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.connect(("127.0.0.1", 4433))
+
+        record_layer = TLSRecordLayer(sock)
+
+        record_layer._handshakeStart(client=True)
+        record_layer.version = (3,3)
+
+        client_hello = ClientHello()
+        client_hello = client_hello.create((3,3), bytearray(32),
+                bytearray(0), [CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA],
+                None, None, False, False, None, extensions=[
+                    EllipticCurvesExtension().create([NamedCurve.secp256r1]),
+                    ECPointFormatsExtension().create([
+                        ECPointFormat.uncompressed])
+                    ])
+
+        for result in record_layer._sendMsg(client_hello):
+            if result in (0,1):
+                raise Exception("blocking socket")
+
+        for result in record_layer._getMsg(ContentType.handshake,
+                HandshakeType.server_hello):
+            if result in (0,1):
+                raise Exception("blocking socket")
+            else:
+                break
+
+        server_hello = result
+        self.assertEqual(ServerHello, type(server_hello))
+
+        for result in record_layer._getMsg(ContentType.handshake,
+                HandshakeType.certificate, CertificateType.x509):
+            if result in (0,1):
+                raise Exception("blocking socket")
+            else:
+                break
+
+        server_certificate = result
+        self.assertEqual(Certificate, type(server_certificate))
+
+        for result in record_layer._getMsg(ContentType.handshake,
+                HandshakeType.server_key_exchange,
+                constructorType=CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA):
+            if result in (0,1):
+                raise Exception("blocking socket")
+            else:
+                break
+
+        server_key_exchange = result
+        self.assertEqual(ServerKeyExchange, type(server_key_exchange))
+
+        for result in record_layer._getMsg(ContentType.handshake,
+                HandshakeType.server_hello_done):
+            if result in (0,1):
+                raise Exception("blocking socket")
+            else:
+                break
+
+        server_hello_done = result
+        self.assertEqual(ServerHelloDone, type(server_hello_done))
+
+        # check if server supports uncompressed points
+        ext = server_hello.getExtension(ExtensionType.ec_point_formats)
+        if ext:
+            self.assertTrue(ECPointFormat.uncompressed in ext.point_formats)
+            # if it's not present then the implementation MUST support it
+
+
+        # verify signature on server kex
+        public_key = server_certificate.certChain.getEndEntityPublicKey()
+
+        # we don't support anything else
+        self.assertEqual(server_key_exchange.sig_hash, HashAlgorithm.sha1)
+        self.assertEqual(server_key_exchange.sig_alg, SignatureAlgorithm.rsa)
+
+        self.assertTrue(public_key.hashAndVerify(\
+                server_key_exchange.signature,
+                bytearray(32) + server_hello.random + \
+                        server_key_exchange.raw_data))
+
+        # XXX we don't support any other, but we did sent just this one
+        # so it's fine..., totally fine ;)
+        ecdh_generator = generator_256
+
+        ecdh_X = bytesToNumber(bytearray(range(1,33))) # client random
+        ecdh_gx = ecdh_X * ecdh_generator
+
+        ecdh_gy = Point(curve_256,
+            server_key_exchange.xp,
+            server_key_exchange.yp)
+
+        client_key_exchange = ClientKeyExchange(
+                CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
+                (3,3))
+        client_key_exchange.createECDH(ecdh_gx)
+
+        for result in record_layer._sendMsg(client_key_exchange):
+            if result in (0,1):
+                raise Exception("blocking socket")
+            else:
+                break
+
+        ecdh_gxy = ecdh_X * ecdh_gy
+        premasterSecret = numberToByteArray(ecdh_gxy.x())
+
+        master_secret = calcMasterSecret((3,3), premasterSecret,
+                client_hello.random, server_hello.random)
+
+        # same cipher suite but with different kex to make it a bit easier
+        record_layer._calcPendingStates(
+                CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
+                master_secret, client_hello.random, server_hello.random,
+                None)
+
+        for result in record_layer._sendMsg(ChangeCipherSpec()):
+            if result in (0,1):
+                raise Exception("blocking socket")
+            else:
+                break
+
+        record_layer._changeWriteState()
+
+        handshake_hashes = record_layer._handshake_sha256.digest()
+        verify_data = PRF_1_2(master_secret, b'client finished',
+                handshake_hashes, 12)
+
+        finished = Finished((3,3)).create(verify_data)
+        for result in record_layer._sendMsg(finished):
+            if result in (0,1):
+                raise Exception("blocking socket")
+            else:
+                break
+
+        for result in record_layer._getMsg(ContentType.change_cipher_spec):
+            if result in (0,1):
+                raise Exception("blocking socket")
+            else:
+                break
+
+        change_cipher_spec = result
+        self.assertEqual(ChangeCipherSpec, type(change_cipher_spec))
+
+        record_layer._changeReadState()
+
+        handshake_hashes = record_layer._handshake_sha256.digest()
+        server_verify_data = PRF_1_2(master_secret, b'server finished',
+                handshake_hashes, 12)
+
+        for result in record_layer._getMsg(ContentType.handshake,
+                HandshakeType.finished):
+            if result in (0,1):
+                raise Exception("blocking socket")
+            else:
+                break
+
+        server_finished = result
+        self.assertEqual(Finished, type(server_finished))
+        self.assertEqual(server_verify_data, server_finished.verify_data)
+
+        record_layer._handshakeDone(resumed=False)
+
+        record_layer.write(bytearray(b'text\n'))
+
+        record_layer.close()
