@@ -46,6 +46,7 @@ class ExtensionType:    # RFC 6066 / 4366
     cert_type = 9       # RFC 6091
     elliptic_curves = 10 # RFC 4492
     ec_point_formats = 11 # RFC 4492
+    signature_algorithms = 13 # RFC 5246
     tack = 0xF300
     supports_npn = 13172
 
