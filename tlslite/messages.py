@@ -942,6 +942,31 @@ class ServerKeyExchange(HandshakeMsg):
             self.sig_hash = p.get(1)
             self.sig_alg = p.get(1)
             self.signature = p.getVarBytes(2)
+        elif self.cipherSuite in [CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA]:
+            start_index = p.index
+            self.params_type = p.get(1)
+            if self.params_type != 3:
+                raise SyntaxError("Unsupported curve encoding")
+            self.named_curve = p.get(2)
+            pubkey = p.getVarBytes(1)
+            # extract the uncompressed point encoding
+            if pubkey[0] != 4:
+                raise SyntaxError("Unsupported point encoding")
+            # remove the encoding id
+            pubkey = pubkey[1:]
+            if len(pubkey) % 2 != 0:
+                raise SyntaxError("Invalid point encoding")
+            # extract point dimensions
+            self.xp = bytesToNumber(pubkey[:len(pubkey)//2])
+            self.yp = bytesToNumber(pubkey[len(pubkey)//2:])
+            end_index = p.index
+            self.raw_data = p.bytes[start_index:end_index]
+            # extract signature
+            self.sig_hash = p.get(1)
+            self.sig_alg = p.get(1)
+            self.signature = p.getVarBytes(2)
+        else:
+            raise SyntaxError("Unsupported cipher suite")
         p.stopLengthCheck()
         return self
 
@@ -1028,6 +1053,10 @@ class ClientKeyExchange(HandshakeMsg):
     def createDH(self, dh_Yc):
         self.dh_Yc = dh_Yc
         return self
+
+    def createECDH(self, dh_gX):
+        self.ecdh_x = dh_gX.x()
+        self.ecdh_y = dh_gX.y()
     
     def parse(self, p):
         p.startLengthCheck(3)
@@ -1064,6 +1093,10 @@ class ClientKeyExchange(HandshakeMsg):
             w.addVarSeq(numberToByteArray(self.dh_Yc), 1, 2)            
         elif self.cipherSuite in [CipherSuite.TLS_DHE_RSA_WITH_AES_128_CBC_SHA]:
             w.addVarSeq(numberToByteArray(self.dh_Yc), 1, 2)
+        elif self.cipherSuite in [CipherSuite.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA]:
+            xp = numberToByteArray(self.ecdh_x)
+            yp = numberToByteArray(self.ecdh_y)
+            w.addVarSeq(bytearray(b'\x04') + xp + yp, 1, 1)
         else:
             raise AssertionError()
         return self.postWrite(w)
