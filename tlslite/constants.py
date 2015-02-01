@@ -49,6 +49,15 @@ class ExtensionType:    # RFC 6066 / 4366
     tack = 0xF300
     supports_npn = 13172
 
+class HashAlgorithm:
+    none = 0
+    md5 = 1
+    sha1 = 2
+
+class SignatureAlgorithm:
+    anonymous = 0
+    rsa = 1
+
 class NamedCurve:
     secp256r1 = 23
 
