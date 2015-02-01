@@ -1024,6 +1024,79 @@ class ECPointFormatsExtension(TLSExtension):
             self.point_formats = p.getVarList(1, 1)
         return self
 
+class SignatureAlgorithmsExtension(TLSExtension):
+    SignatureAndHashAlgorithm = namedtuple('SignatureAndHashAlgorithm',
+            'hash_alg signature_alg')
+
+    def __init__(self):
+        self.sigAndHashAlgs = None
+
+    def __repr__(self):
+        """
+        @rtype: str
+        """
+        return "SignatureAlgorithmsExtension(sigAndHashAlgs={0!r})".format(\
+                self.sigAndHashAlgs)
+
+    def addSigAndHashAlg(self, sig_and_hash_alg):
+        """
+        @type sig_and_hash_alg: SignatureAndHashAlgorithm
+        """
+        if self.sigAndHashAlgs is None:
+            self.sigAndHashAlgs = []
+        self.sigAndHashAlgs += [sig_and_hash_alg]
+
+    @property
+    def ext_type(self):
+        """
+        @rtype: int
+        """
+        return ExtensionType.signature_algorithms
+
+    @property
+    def ext_data(self):
+        """
+        @rtype: bytearray
+        """
+        if self.sigAndHashAlgs is None:
+            return bytearray(0)
+
+        w = Writer()
+        for sigHash in self.sigAndHashAlgs:
+            w.add(sigHash.hash_alg, 1)
+            w.add(sigHash.signature_alg, 1)
+
+        w2 = Writer()
+        w2.addVarSeq(w.bytes, 1, 2)
+
+        return w2.bytes
+
+    def create(self, sigAlgs):
+        """
+        @type sigAlgs: list of SignatureAndHashAlgorithm
+        @rtype: SignatureAlgorithmsExtension
+        """
+        self.sigAndHashAlgs = sigAlgs
+        return self
+
+    def parse(self, p):
+        """
+        @type p: Parser
+        @rtype: SignatureAlgorithmsExtension
+        """
+        if p.getRemainingLength() == 0:
+            self.sigAndHashAlgs = None
+        else:
+            self.sigAndHashAlgs = []
+            p.startLengthCheck(2)
+            while not p.atLengthCheck():
+                h = p.get(1)
+                s = p.get(1)
+                self.sigAndHashAlgs += [\
+                        self.SignatureAndHashAlgorithm(h, s)]
+            p.stopLengthCheck()
+        return self
+
 TLSExtension._universal_extensions = { ExtensionType.server_name : SNIExtension,
         ExtensionType.cert_type : ClientCertTypeExtension,
         ExtensionType.srp : SRPExtension,

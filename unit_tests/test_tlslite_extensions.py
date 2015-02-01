@@ -5,9 +5,11 @@
 import unittest
 from tlslite.extensions import TLSExtension, SNIExtension, NPNExtension,\
         SRPExtension, ClientCertTypeExtension, ServerCertTypeExtension,\
-        TACKExtension, EllipticCurvesExtension, ECPointFormatsExtension
+        TACKExtension, EllipticCurvesExtension, ECPointFormatsExtension,\
+        SignatureAlgorithmsExtension
 from tlslite.utils.codec import Parser
-from tlslite.constants import NameType, NamedCurve, ECPointFormat
+from tlslite.constants import NameType, NamedCurve, ECPointFormat,\
+        HashAlgorithm, SignatureAlgorithm
 
 class TestTLSExtension(unittest.TestCase):
     def test___init__(self):
@@ -1006,6 +1008,79 @@ class TestECPointFormatsExtension(unittest.TestCase):
 
         with self.assertRaises(SyntaxError):
             point_formats.parse(p)
+
+class TestSignatureAlgorithmsExtension(unittest.TestCase):
+    def test___init__(self):
+        sig_algs = SignatureAlgorithmsExtension()
+
+        self.assertIsInstance(sig_algs, SignatureAlgorithmsExtension)
+        self.assertEqual(None, sig_algs.sigAndHashAlgs)
+        self.assertEqual(13, sig_algs.ext_type)
+        self.assertEqual(bytearray(0), sig_algs.ext_data)
+
+    def test___repr__(self):
+        s_n_h = SignatureAlgorithmsExtension.SignatureAndHashAlgorithm
+        sig_algs = SignatureAlgorithmsExtension().create(\
+                [s_n_h(HashAlgorithm.sha1, SignatureAlgorithm.rsa),
+                    s_n_h(HashAlgorithm.md5, SignatureAlgorithm.rsa)])
+
+        self.assertEqual("SignatureAlgorithmsExtension("\
+                "sigAndHashAlgs=["\
+                "SignatureAndHashAlgorithm(hash_alg=2, signature_alg=1), "\
+                "SignatureAndHashAlgorithm(hash_alg=1, signature_alg=1)"\
+                "])", repr(sig_algs))
+
+    def test_create(self):
+        s_n_h = SignatureAlgorithmsExtension.SignatureAndHashAlgorithm
+        sig_algs = SignatureAlgorithmsExtension().create(\
+                [s_n_h(HashAlgorithm.sha1, SignatureAlgorithm.rsa),
+                    s_n_h(HashAlgorithm.md5, SignatureAlgorithm.rsa)])
+
+        self.assertEqual([s_n_h(2, 1), s_n_h(1, 1)],
+                sig_algs.sigAndHashAlgs)
+        self.assertEqual(HashAlgorithm.sha1,\
+                sig_algs.sigAndHashAlgs[0].hash_alg)
+        self.assertEqual(HashAlgorithm.md5,\
+                sig_algs.sigAndHashAlgs[1].hash_alg)
+        self.assertEqual(bytearray(b'\x00\x04\x02\x01\x01\x01'),
+                sig_algs.ext_data)
+
+    def test_parse(self):
+        p = Parser(bytearray(b'\x00\x02\x01\x02'))
+        s_n_h = SignatureAlgorithmsExtension.SignatureAndHashAlgorithm
+
+        sig_algs = SignatureAlgorithmsExtension()
+
+        sig_algs = sig_algs.parse(p)
+
+        self.assertEqual([s_n_h(1, 2)], sig_algs.sigAndHashAlgs)
+        self.assertEqual(13, sig_algs.ext_type)
+
+    def test_parse_with_no_data(self):
+        p = Parser(bytearray(0))
+
+        sig_algs = SignatureAlgorithmsExtension()
+
+        sig_algs = sig_algs.parse(p)
+
+        self.assertEqual(None, sig_algs.sigAndHashAlgs)
+
+    def test_parse_with_empty_array(self):
+        p = Parser(bytearray(b'\x00\x00'))
+
+        sig_algs = SignatureAlgorithmsExtension()
+
+        sig_algs = sig_algs.parse(p)
+
+        self.assertEqual([], sig_algs.sigAndHashAlgs)
+
+    def test_parse_with_data_short_by_one(self):
+        p = Parser(bytearray(b'\x00\x02\x01'))
+
+        sig_algs = SignatureAlgorithmsExtension()
+
+        with self.assertRaises(SyntaxError):
+            sig_algs.parse(p)
 
 if __name__ == '__main__':
     unittest.main()
