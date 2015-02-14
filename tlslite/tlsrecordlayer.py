@@ -1,4 +1,4 @@
-# Authors: 
+# Authors:
 #   Trevor Perrin
 #   Google (adapted by Sam Rushing) - NPN support
 #   Martin von Loewis - python 3 port
@@ -358,7 +358,7 @@ class TLSRecordLayer(object):
                     yield result
                 alert = None
                 # By default close the socket, since it's been observed
-                # that some other libraries will not respond to the 
+                # that some other libraries will not respond to the
                 # close_notify alert, thus leaving us hanging if we're
                 # expecting it
                 if self.closeSocket:
@@ -401,7 +401,7 @@ class TLSRecordLayer(object):
             return "TLS 1.2"
         else:
             return None
-        
+
     def getCipherName(self):
         """Get the name of the cipher used with this connection.
 
@@ -474,7 +474,7 @@ class TLSRecordLayer(object):
         # class, so that when fileobject.close() gets called, it will
         # close() us, causing the refcount to be decremented (decrefAsync).
         #
-        # If this is the last close() on the outstanding fileobjects / 
+        # If this is the last close() on the outstanding fileobjects /
         # TLSConnection, then the "actual" close alerts will be sent,
         # socket closed, etc.
         if sys.version_info < (3,):
@@ -508,11 +508,11 @@ class TLSRecordLayer(object):
     def shutdown(self, how):
         """Shutdown the underlying socket."""
         return self.sock.shutdown(how)
-    	
+
     def fileno(self):
         """Not implement in TLS Lite."""
         raise NotImplementedError()
-    	
+
 
      #*********************************************************
      # Public Functions END
@@ -558,15 +558,15 @@ class TLSRecordLayer(object):
             msgFirstByte = msg.splitFirstByte()
             for result in self._sendMsg(msgFirstByte,
                                        randomizeFirstBlock = False):
-                yield result                                            
+                yield result
 
         b = msg.write()
-        
-        # If a 1-byte message was passed in, and we "split" the 
+
+        # If a 1-byte message was passed in, and we "split" the
         # first(only) byte off above, we may have a 0-length msg:
         if len(b) == 0:
             return
-            
+
         contentType = msg.contentType
 
         #Fragment big messages
@@ -1279,10 +1279,10 @@ class TLSRecordLayer(object):
             createCipherFunc = createTripleDES
         else:
             raise AssertionError()
-            
+
         if cipherSuite in CipherSuite.shaSuites:
             macLength = 20
-            digestmod = hashlib.sha1        
+            digestmod = hashlib.sha1
         elif cipherSuite in CipherSuite.sha256Suites:
             macLength = 32
             digestmod = hashlib.sha256
