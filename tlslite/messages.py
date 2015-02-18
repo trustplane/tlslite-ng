@@ -436,7 +436,7 @@ class ClientHello(HandshakeMsg):
     def create(self, version, random, session_id, cipher_suites,
                certificate_types=None, srpUsername=None,
                tack=False, supports_npn=False, serverName=None,
-               extensions=None):
+               extensions=None, compression_methods=None):
         """
         Create a ClientHello message for sending.
 
@@ -476,12 +476,18 @@ class ClientHello(HandshakeMsg):
 
         @type extensions: list of L{TLSExtension}
         @param extensions: list of extensions to advertise
+
+        @type compression_methods: list of int
+        @param compression_methods: list of compression methods to advertise
         """
         self.client_version = version
         self.random = random
         self.session_id = session_id
         self.cipher_suites = cipher_suites
-        self.compression_methods = [0]
+        if compression_methods is None:
+            self.compression_methods = [0]
+        else:
+            self.compression_methods = compression_methods
         if not extensions is None:
             self.extensions = extensions
         if not certificate_types is None:
