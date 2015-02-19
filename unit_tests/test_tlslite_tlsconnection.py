@@ -20,9 +20,11 @@ from unit_tests.mocksock import MockSocket
 
 class TestTLSConnection(unittest.TestCase):
     def test___init__(self):
-        conn = TLSConnection(None)
+        mock_sock = mock.create_autospec(socket.socket)
+        conn = TLSConnection(mock_sock)
 
         self.assertIsNotNone(conn)
+        self.assertEqual(id(mock_sock), id(conn.sock))
 
     def test_getpeername(self):
         mock_sock = mock.create_autospec(socket.socket)
@@ -404,3 +406,58 @@ class TestTLSConnection(unittest.TestCase):
         # operation is effectively no-op, but the function has to exist
         # and not throw an exception
         conn.clearWriteBuffer()
+
+    def test_allegedSrpUsername(self):
+        conn = TLSConnection(None)
+
+        self.assertIsNone(conn.allegedSrpUsername)
+
+    def test_blockSize(self):
+        conn = TLSConnection(None)
+
+        self.assertEqual(16384, conn.blockSize)
+
+        conn.blockSize = 1420
+
+        self.assertEqual(1420, conn.blockSize)
+
+    def test_closeSocket(self):
+        conn = TLSConnection(None)
+
+        self.assertEqual(True, conn.closeSocket)
+
+        conn.closeSocket = False
+
+        self.assertEqual(False, conn.closeSocket)
+
+    def test_closed(self):
+        conn = TLSConnection(None)
+
+        self.assertEqual(True, conn.closed)
+
+    def test_etm(self):
+        conn = TLSConnection(None)
+
+        self.assertEqual(False, conn.etm)
+
+        # XXX setting is not expected - read only variable
+        conn.etm = True
+        self.assertEqual(True, conn.etm)
+
+    def test_ignoreAbruptClose(self):
+        conn = TLSConnection(None)
+
+        self.assertEqual(False, conn.ignoreAbruptClose)
+
+        conn.ignoreAbruptClose = True
+
+        self.assertEqual(True, conn.ignoreAbruptClose)
+
+    def test_resumed(self):
+        conn = TLSConnection(None)
+
+        self.assertEqual(False, conn.resumed)
+
+        #XXX setting is not expected - read only variable
+        conn.resumed = True
+        self.assertEqual(True, conn.resumed)
