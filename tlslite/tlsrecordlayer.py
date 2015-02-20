@@ -783,8 +783,6 @@ class TLSRecordLayer(object):
                 self._handshakeBuffer += b
                 self._handshakeRecord = r
 
-                for result in self._getHandshakeFromBuffer():
-                    yield result
     def _decryptRecord(self, recordType, b):
         if self._readState.encContext:
 
