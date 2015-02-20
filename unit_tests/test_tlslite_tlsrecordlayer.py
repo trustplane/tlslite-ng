@@ -488,7 +488,7 @@ class TestTLSRecordLayer(unittest.TestCase):
             else:
                 break
 
-        srv_record_layer._handshakeDone(resumed=False)
+        srv_record_layer.closed = False
 
         #
         # client part
@@ -520,7 +520,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         self.assertEqual(Finished, type(server_finished))
         self.assertEqual(server_verify_data, server_finished.verify_data)
 
-        record_layer._handshakeDone(resumed=False)
+        record_layer.closed = False
 
         # try sending data
         for result in record_layer._sendMsg(ApplicationData().create(\
@@ -670,7 +670,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         self.assertEqual(Finished, type(server_finished))
         self.assertEqual(server_verify_data, server_finished.verify_data)
 
-        record_layer._handshakeDone(resumed=False)
+        record_layer.closed = False
 
         record_layer.write(bytearray(b'text\n'))
 

@@ -61,10 +61,8 @@ class TLSRecordLayer(object):
     (3,0) means SSL 3.0, and (3,1) means TLS 1.0.
 
     @type closed: bool
-    @ivar closed: If this connection is closed.
-
-    @type resumed: bool
-    @ivar resumed: If this connection is based on a resumed session.
+    @ivar closed: If this connection is closed to writing application_data,
+    there still may be some leftover messages in buffer to read.
 
     @type allegedSrpUsername: str or None
     @ivar allegedSrpUsername:  This is set to the SRP username
@@ -146,9 +144,6 @@ class TLSRecordLayer(object):
         #Is the connection open?
         self.closed = True #read-only
         self._refCount = 0 #Used to trigger closure
-
-        #Is this a resumed session?
-        self.resumed = False #read-only
 
         #What username did the client claim in his handshake?
         self.allegedSrpUsername = None
@@ -958,10 +953,6 @@ class TLSRecordLayer(object):
         self._handshakeRecord = None
         self.allegedSrpUsername = None
         self._refCount = 1
-
-    def _handshakeDone(self, resumed):
-        self.resumed = resumed
-        self.closed = False
 
     def _calcPendingStates(self, cipherSuite, masterSecret,
             clientRandom, serverRandom, implementations):

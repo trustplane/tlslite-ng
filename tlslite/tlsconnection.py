@@ -48,6 +48,9 @@ class TLSConnection(TLSRecordLayer):
     framework like asyncore or Twisted which TLS Lite integrates with
     (see
     L{tlslite.integration.tlsasyncdispatchermixin.TLSAsyncDispatcherMixIn}).
+
+    @type resumed: bool
+    @ivar resumed: If this connection is based on a resumed session.
     """
 
     def __init__(self, sock):
@@ -62,6 +65,7 @@ class TLSConnection(TLSRecordLayer):
         TLSRecordLayer.__init__(self, sock)
 
         self._readBuffer = bytearray(0)
+        self.resumed = False
 
     #*********************************************************
     # Client Handshake Functions
@@ -444,7 +448,8 @@ class TLSConnection(TLSRecordLayer):
             if result in (0,1): yield result
             else: break
         if result == "resumed_and_finished":
-            self._handshakeDone(resumed=True)
+            self.resumed = True
+            self.closed = False
             return
 
         #If the server selected an SRP ciphersuite, the client finishes
@@ -502,7 +507,8 @@ class TLSConnection(TLSRecordLayer):
         self.session.create(masterSecret, serverHello.session_id, cipherSuite,
             srpUsername, clientCertChain, serverCertChain,
             tackExt, serverHello.tackExt!=None, serverName)
-        self._handshakeDone(resumed=False)
+        self.resumed = False
+        self.closed = False
 
 
     def _clientSendClientHello(self, settings, session, srpUsername,
@@ -1115,7 +1121,8 @@ class TLSConnection(TLSRecordLayer):
                                             anon):
             if result in (0,1): yield result
             elif result == None:
-                self._handshakeDone(resumed=True)                
+                self.resumed = True
+                self.closed = False
                 return # Handshake was resumed, we're done 
             else: break
         (clientHello, cipherSuite) = result
@@ -1218,7 +1225,8 @@ class TLSConnection(TLSRecordLayer):
         if sessionCache and sessionID:
             sessionCache[sessionID] = self.session
 
-        self._handshakeDone(resumed=False)
+        self.resumed = False
+        self.closed = False
 
 
     def _serverGetClientHello(self, settings, certChain, verifierDB,
