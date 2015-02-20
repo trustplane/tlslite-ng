@@ -676,7 +676,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer.close()
 
-    def test__getNextRecord(self):
+    def test_recvMessage(self):
 
         mock_sock = MockSocket(bytearray(
             b'\x16' +           # handshake
@@ -688,7 +688,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer = TLSRecordLayer(mock_sock)
 
-        for result in record_layer._getNextRecord():
+        for result in record_layer.recvMessage():
             if result in (0,1):
                 raise Exception("blocking socket")
             else: break
@@ -701,7 +701,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         self.assertIsInstance(p, Parser)
         self.assertEqual(bytearray(b'\x0e\x00\x00\x00'), p.bytes)
 
-    def test__getNextRecord_with_empty_handshake(self):
+    def test_recvMessage_with_empty_handshake(self):
 
         mock_sock = MockSocket(bytearray(
             b'\x16' +           # handshake
@@ -713,13 +713,13 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         # empty handshake messages are disallowed by standard
         with self.assertRaises(TLSLocalAlert):
-            for result in record_layer._getNextRecord():
+            for result in record_layer.recvMessage():
                 if result in (0,1):
                     raise Exception("blocking socket")
                 else:
                     break
 
-    def test__getNextRecord_with_multiple_messages_in_single_record(self):
+    def test_recvMessage_with_multiple_messages_in_single_record(self):
 
         mock_sock = MockSocket(bytearray(
             b'\x16' +           # handshake
@@ -745,7 +745,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         record_layer = TLSRecordLayer(mock_sock)
 
         results = []
-        for result in record_layer._getNextRecord():
+        for result in record_layer.recvMessage():
             if result in (0,1):
                 raise Exception("blocking")
             else:

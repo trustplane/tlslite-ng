@@ -322,7 +322,7 @@ class TLSRecordLayer(object):
                         
                         # See if there's an alert record
                         # Could raise socket.error or TLSAbruptCloseError
-                        for result in self._getNextRecord():
+                        for result in self.recvMessage():
                             if result in (0,1):
                                 yield result
                                 
@@ -539,7 +539,7 @@ class TLSRecordLayer(object):
             #    then try again
             #  - we receive an empty application-data fragment; we try again
             while 1:
-                for result in self._getNextRecord():
+                for result in self.recvMessage():
                     if result in (0,1):
                         yield result
                     else: break
@@ -709,7 +709,21 @@ class TLSRecordLayer(object):
                 break
 
     #Returns next record or next handshake message
-    def _getNextRecord(self):
+    def recvMessage(self):
+        """
+        Generator which will try to read, decrypt and reassemble messages from
+        records read from socket. The returned messages are returned in order
+        of the *last* byte of the message received.
+
+        For example, if the record layer recieves records that decrypt to:
+        handshake(first 3 bytes), application data, handshake(rest) the
+        generator will return twice, once with application data and once
+        with handshake message.
+
+        @rtype: generator
+        @return: generator which returns tuples of L{RecordLayer3} or
+        L{RecordLayer2} and L{Parser} with read message ready for parsing
+        """
 
         # XXX a bit hackish but needed to support fragmentation
         # (RFC 5246 Section 6.2.1)
