@@ -1051,19 +1051,3 @@ class TLSRecordLayer(object):
     def _changeReadState(self):
         self._readState = self._pendingReadState
         self._pendingReadState = _ConnectionState()
-
-    #Used for Finished messages and CertificateVerify messages in SSL v3
-    def _calcSSLHandshakeHash(self, masterSecret, label):
-        imac_md5 = self._handshake_md5.copy()
-        imac_sha = self._handshake_sha.copy()
-
-        imac_md5.update(compatHMAC(label + masterSecret + bytearray([0x36]*48)))
-        imac_sha.update(compatHMAC(label + masterSecret + bytearray([0x36]*40)))
-
-        md5Bytes = MD5(masterSecret + bytearray([0x5c]*48) + \
-                         bytearray(imac_md5.digest()))
-        shaBytes = SHA1(masterSecret + bytearray([0x5c]*40) + \
-                         bytearray(imac_sha.digest()))
-
-        return md5Bytes + shaBytes
-
