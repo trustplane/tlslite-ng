@@ -28,6 +28,8 @@ from tlslite.utils.keyfactory import parsePEMKey
 from tlslite.utils.codec import Parser
 from unit_tests.mocksock import MockSocket
 
+from tlslite.tlsconnection import TLSConnection
+
 class TestTLSRecordLayer(unittest.TestCase):
     def test___init__(self):
         record_layer = TLSRecordLayer(None)
@@ -256,6 +258,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 bytearray(0), [CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA],
                 None, None, False, False, None)
 
+        record_layer._handshakeHashes.update(client_hello.write())
         for result in record_layer._sendMsg(client_hello):
             if result in (0,1):
                 raise Exception("blocking socket")
@@ -329,6 +332,8 @@ class TestTLSRecordLayer(unittest.TestCase):
         srv_msgs.append(Certificate(CertificateType.x509).
                 create(srv_cert_chain))
         srv_msgs.append(ServerHelloDone())
+        for msg in srv_msgs:
+            srv_record_layer._handshakeHashes.update(msg.write())
         for result in srv_record_layer._sendMsgs(srv_msgs):
             if result in (0,1):
                 raise Exception("blocking socket")
@@ -383,6 +388,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 (3,3))
         client_key_exchange.createRSA(encryptedPreMasterSecret)
 
+        record_layer._handshakeHashes.update(client_key_exchange.write())
         for result in record_layer._sendMsg(client_key_exchange):
             if result in (0,1):
                 raise Exception("blocking socket")
@@ -410,6 +416,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 handshake_hashes, 12)
 
         finished = Finished((3,3)).create(verify_data)
+        record_layer._handshakeHashes.update(finished.write())
         for result in record_layer._sendMsg(finished):
             if result in (0,1):
                 raise Exception("blocking socket")
@@ -481,8 +488,9 @@ class TestTLSRecordLayer(unittest.TestCase):
         srv_verify_data = PRF_1_2(srv_master_secret, b"server finished",
                 srv_handshakeHashes, 12)
 
-        for result in srv_record_layer._sendMsg(Finished((3,3)).create(
-                srv_verify_data)):
+        srv_server_finished = Finished((3, 3)).create(srv_verify_data)
+        srv_record_layer._handshakeHashes.update(srv_server_finished.write())
+        for result in srv_record_layer._sendMsg(srv_server_finished):
             if result in (0,1):
                 raise Exception("blocking socket")
             else:

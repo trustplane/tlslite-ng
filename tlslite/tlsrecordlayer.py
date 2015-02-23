@@ -285,10 +285,6 @@ class TLSRecordLayer(object):
                     randomizeFirstBlock=False):
                 yield result
 
-        #Update handshake hashes
-        if contentType == ContentType.handshake:
-            self._handshakeHashes.update(b)
-
         if self.etm:
             b = self._encryptThenMAC(b, contentType)
         else:

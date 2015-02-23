@@ -2065,3 +2065,10 @@ class TLSConnection(TLSRecordLayer):
     def fileno(self):
         """Not implement in TLS Lite."""
         raise NotImplementedError()
+
+    def _sendMsg(self, msg, randomizeFirstBlock = True):
+        # TODO: ignore handshake_request
+        if msg.contentType == ContentType.handshake:
+            b = msg.write()
+            self._handshakeHashes.update(b)
+        return super(TLSConnection, self)._sendMsg(msg, randomizeFirstBlock)
