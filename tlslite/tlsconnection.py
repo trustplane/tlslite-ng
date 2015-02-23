@@ -858,12 +858,9 @@ class TLSConnection(TLSRecordLayer):
                                          premasterSecret,
                                          clientRandom,
                                          serverRandom)
-                verifyBytes = self._calcSSLHandshakeHash(masterSecret, b"")
-            elif self.version in ((3,1), (3,2)):
-                verifyBytes = self._handshake_md5.digest() + \
-                                self._handshake_sha.digest()
-            elif self.version == (3,3):
-                verifyBytes = self._handshake_sha256.digest()
+                verifyBytes = self._handshakeHashes.digestSSL(masterSecret, b'')
+            else:
+                verifyBytes = self._handshakeHashes.digest(self.version)
             if self.fault == Fault.badVerifyMessage:
                 verifyBytes[0] = ((verifyBytes[0]+1) % 256)
             signedBytes = privateKey.sign(verifyBytes)
@@ -1533,12 +1530,9 @@ class TLSConnection(TLSRecordLayer):
             if self.version == (3,0):
                 masterSecret = calcMasterSecret(self.version, premasterSecret,
                                          clientHello.random, serverHello.random)
-                verifyBytes = self._calcSSLHandshakeHash(masterSecret, b"")
-            elif self.version in ((3,1), (3,2)):
-                verifyBytes = self._handshake_md5.digest() + \
-                                self._handshake_sha.digest()
-            elif self.version == (3,3):
-                verifyBytes = self._handshake_sha256.digest()
+                verifyBytes = self._handshakeHashes.digestSSL(masterSecret, b'')
+            else:
+                verifyBytes = self._handshakeHashes.digest(self.version)
             for result in self._getMsg(ContentType.handshake,
                                       HandshakeType.certificate_verify):
                 if result in (0,1): yield result
@@ -1716,7 +1710,8 @@ class TLSConnection(TLSRecordLayer):
             else:
                 senderStr = b"\x53\x52\x56\x52"
 
-            verifyData = self._calcSSLHandshakeHash(masterSecret, senderStr)
+            verifyData = self._handshakeHashes.digestSSL(masterSecret,
+                    senderStr)
             return verifyData
 
         elif self.version in ((3,1), (3,2)):
@@ -1725,8 +1720,7 @@ class TLSConnection(TLSRecordLayer):
             else:
                 label = b"server finished"
 
-            handshakeHashes = self._handshake_md5.digest() + \
-                                self._handshake_sha.digest()
+            handshakeHashes = self._handshakeHashes.digest(self.version)
             verifyData = PRF(masterSecret, label, handshakeHashes, 12)
             return verifyData
         elif self.version == (3,3):
@@ -1735,7 +1729,7 @@ class TLSConnection(TLSRecordLayer):
             else:
                 label = b"server finished"
 
-            handshakeHashes = self._handshake_sha256.digest()
+            handshakeHashes = self._handshakeHashes.digest(self.version)
             verifyData = PRF_1_2(masterSecret, label, handshakeHashes, 12)
             return verifyData
         else:
@@ -2071,21 +2065,3 @@ class TLSConnection(TLSRecordLayer):
     def fileno(self):
         """Not implement in TLS Lite."""
         raise NotImplementedError()
-
-    def _calcSSLHandshakeHash(self, masterSecret, label):
-        """
-        Calculate SSLv3 version of HMAC for Finished and CertificateVerify
-        messages
-        """
-        imac_md5 = self._handshake_md5.copy()
-        imac_sha = self._handshake_sha.copy()
-
-        imac_md5.update(compatHMAC(label + masterSecret + bytearray([0x36]*48)))
-        imac_sha.update(compatHMAC(label + masterSecret + bytearray([0x36]*40)))
-
-        md5Bytes = MD5(masterSecret + bytearray([0x5c]*48) + \
-                         bytearray(imac_md5.digest()))
-        shaBytes = SHA1(masterSecret + bytearray([0x5c]*40) + \
-                         bytearray(imac_sha.digest()))
-
-        return md5Bytes + shaBytes

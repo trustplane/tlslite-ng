@@ -19,6 +19,7 @@ from .messages import *
 from .mathtls import *
 from .constants import *
 from .utils.cryptomath import getRandomBytes
+from .handshakehashes import HandshakeHashes
 
 import socket
 import errno
@@ -127,9 +128,7 @@ class TLSRecordLayer(object):
         self._handshakeRecord = None
 
         #Handshake digests
-        self._handshake_md5 = hashlib.md5()
-        self._handshake_sha = hashlib.sha1()
-        self._handshake_sha256 = hashlib.sha256()
+        self._handshakeHashes = HandshakeHashes()
 
         #TLS Protocol Version
         self.version = (0,0) #read-only
@@ -288,9 +287,7 @@ class TLSRecordLayer(object):
 
         #Update handshake hashes
         if contentType == ContentType.handshake:
-            self._handshake_md5.update(compat26Str(b))
-            self._handshake_sha.update(compat26Str(b))
-            self._handshake_sha256.update(compat26Str(b))
+            self._handshakeHashes.update(b)
 
         if self.etm:
             b = self._encryptThenMAC(b, contentType)
@@ -652,9 +649,7 @@ class TLSRecordLayer(object):
                             yield result
 
                 #Update handshake hashes
-                self._handshake_md5.update(compat26Str(p.bytes))
-                self._handshake_sha.update(compat26Str(p.bytes))
-                self._handshake_sha256.update(compat26Str(p.bytes))
+                self._handshakeHashes.update(p.bytes)
 
                 #Parse based on handshake type
                 if subType == HandshakeType.client_hello:
@@ -958,9 +953,7 @@ class TLSRecordLayer(object):
         if not self.closed:
             raise ValueError("Renegotiation disallowed for security reasons")
         self._client = client
-        self._handshake_md5 = hashlib.md5()
-        self._handshake_sha = hashlib.sha1()
-        self._handshake_sha256 = hashlib.sha256()
+        self._handshakeHashes = HandshakeHashes()
         self._handshakeBuffer = bytearray(0)
         self._handshakeRecord = None
         self.allegedSrpUsername = None
