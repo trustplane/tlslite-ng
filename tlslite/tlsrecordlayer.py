@@ -794,6 +794,8 @@ class TLSRecordLayer(object):
     def calcPendingStates(self, cipherSuite, masterSecret,
             clientRandom, serverRandom, implementations):
         """
+        Calculate and prepare pending cipher status for upcomming
+        change_cipher_spec message
         """
         if cipherSuite in CipherSuite.aes128Suites:
             keyLength = 16
