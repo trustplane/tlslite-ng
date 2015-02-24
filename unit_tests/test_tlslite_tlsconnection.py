@@ -14,8 +14,9 @@ import sys
 import socket
 import tlslite.tlsconnection
 from tlslite.tlsconnection import TLSConnection
-from tlslite.errors import TLSClosedConnectionError
-from tlslite.constants import CipherSuite
+from tlslite.errors import TLSClosedConnectionError, TLSLocalAlert
+from tlslite.constants import CipherSuite, ContentType, HandshakeType
+from tlslite.messages import ServerHello
 from unit_tests.mocksock import MockSocket
 
 class TestTLSConnection(unittest.TestCase):
@@ -461,3 +462,108 @@ class TestTLSConnection(unittest.TestCase):
         #XXX setting is not expected - read only variable
         conn.resumed = True
         self.assertEqual(True, conn.resumed)
+
+    def test__getMsg(self):
+
+        mock_sock = MockSocket(
+                bytearray(
+                b'\x16' +           # handshake
+                b'\x03\x03' +       # TLSv1.2
+                b'\x00\x3a' +       # payload length
+                b'\x02' +           # Server Hello
+                b'\x00\x00\x36' +   # hello length
+                b'\x03\x03' +       # TLSv1.2
+                b'\x00'*32 +        # random
+                b'\x00' +           # session ID length
+                b'\x00\x2f' +       # cipher suite selected (AES128-SHA)
+                b'\x00' +           # compression null
+                b'\x00\x0e' +       # extensions length
+                b'\xff\x01' +       # renegotiation_info
+                b'\x00\x01' +       # ext length
+                b'\x00' +           # renegotiation info ext length - 0
+                b'\x00\x23' +       # session_ticket
+                b'\x00\x00' +       # ext length
+                b'\x00\x0f' +       # heartbeat extension
+                b'\x00\x01' +       # ext length
+                b'\x01'))           # peer is allowed to send requests
+
+        record_layer = TLSConnection(mock_sock)
+
+        gen = record_layer._getMsg(ContentType.handshake,
+                HandshakeType.server_hello)
+
+        message = next(gen)
+
+        self.assertEqual(ServerHello, type(message))
+        self.assertEqual((3,3), message.server_version)
+        self.assertEqual(0x002f, message.cipher_suite)
+
+    def test__getMsg_with_fragmented_message(self):
+
+        mock_sock = MockSocket(
+                bytearray(
+                b'\x16' +           # handshake
+                b'\x03\x03' +       # TLSv1.2
+                b'\x00\x06' +       # payload length
+                b'\x02' +           # Server Hello
+                b'\x00\x00\x36' +   # hello length
+                b'\x03\x03' +       # TLSv1.2
+                # fragment end
+                b'\x16' +           # type - handshake
+                b'\x03\x03' +       # TLSv1.2
+                b'\x00\x34' +       # payload length:
+                b'\x00'*32 +        # random
+                b'\x00' +           # session ID length
+                b'\x00\x2f' +       # cipher suite selected (AES128-SHA)
+                b'\x00' +           # compression null
+                b'\x00\x0e' +       # extensions length
+                b'\xff\x01' +       # renegotiation_info
+                b'\x00\x01' +       # ext length
+                b'\x00' +           # renegotiation info ext length - 0
+                b'\x00\x23' +       # session_ticket
+                b'\x00\x00' +       # ext length
+                b'\x00\x0f' +       # heartbeat extension
+                b'\x00\x01' +       # ext length
+                b'\x01'))           # peer is allowed to send requests
+
+        record_layer = TLSConnection(mock_sock)
+
+        gen = record_layer._getMsg(ContentType.handshake,
+                HandshakeType.server_hello)
+
+        message = next(gen)
+
+        if message in (0,1):
+            raise Exception("blocking")
+
+        self.assertEqual(ServerHello, type(message))
+        self.assertEqual((3,3), message.server_version)
+        self.assertEqual(0x002f, message.cipher_suite)
+
+    def test__getMsg_with_oversized_message(self):
+
+        mock_sock = MockSocket(
+                bytearray(
+                b'\x16' +           # handshake
+                b'\x03\x03' +       # TLSv1.2
+                b'\x40\x01' +       # payload length 2**14+1
+                b'\x02' +           # Server Hello
+                b'\x00\x3f\xfd' +   # hello length 2**14+1-1-3
+                b'\x03\x03' +       # TLSv1.2
+                b'\x00'*32 +        # random
+                b'\x00' +           # session ID length
+                b'\x00\x2f' +       # cipher suite selected (AES128-SHA)
+                b'\x00' +           # compression null
+                b'\x3f\xd5' +       # extensions length: 2**14+1-1-3-2-32-6
+                b'\xff\xff' +       # extension type (padding)
+                b'\x3f\xd1' +       # extension length: 2**14+1-1-3-2-32-6-4
+                b'\x00'*16337       # value
+                ))
+
+        record_layer = TLSConnection(mock_sock)
+
+        gen = record_layer._getMsg(ContentType.handshake,
+                HandshakeType.server_hello)
+
+        with self.assertRaises(TLSLocalAlert):
+            message = next(gen)
