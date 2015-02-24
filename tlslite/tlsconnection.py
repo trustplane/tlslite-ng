@@ -2092,3 +2092,160 @@ class TLSConnection(TLSRecordLayer):
         self._handshakeHashes = HandshakeHashes()
         self.allegedSrpUsername = None
         self._refCount = 1
+
+    def _getMsg(self, expectedType, secondaryType=None, constructorType=None):
+        try:
+            if not isinstance(expectedType, tuple):
+                expectedType = (expectedType,)
+
+            #Spin in a loop, until we've got a non-empty record of a type we
+            #expect.  The loop will be repeated if:
+            #  - we receive a renegotiation attempt; we send no_renegotiation,
+            #    then try again
+            #  - we receive an empty application-data fragment; we try again
+            while 1:
+                for result in self.recvMessage():
+                    if result in (0,1):
+                        yield result
+                    else: break
+                recordHeader, p = result
+
+                #If this is an empty application-data fragment, try again
+                if recordHeader.type == ContentType.application_data:
+                    if p.index == len(p.bytes):
+                        continue
+
+                #If we received an unexpected record type...
+                if recordHeader.type not in expectedType:
+
+                    #If we received an alert...
+                    if recordHeader.type == ContentType.alert:
+                        alert = Alert().parse(p)
+
+                        #We either received a fatal error, a warning, or a
+                        #close_notify.  In any case, we're going to close the
+                        #connection.  In the latter two cases we respond with
+                        #a close_notify, but ignore any socket errors, since
+                        #the other side might have already closed the socket.
+                        if alert.level == AlertLevel.warning or \
+                           alert.description == AlertDescription.close_notify:
+
+                            #If the sendMsg() call fails because the socket has
+                            #already been closed, we will be forgiving and not
+                            #report the error nor invalidate the "resumability"
+                            #of the session.
+                            try:
+                                alertMsg = Alert()
+                                alertMsg.create(AlertDescription.close_notify,
+                                                AlertLevel.warning)
+                                for result in self.sendMessage(alertMsg):
+                                    yield result
+                            except socket.error:
+                                pass
+
+                            if alert.description == \
+                                   AlertDescription.close_notify:
+                                self._shutdown(True)
+                            elif alert.level == AlertLevel.warning:
+                                self._shutdown(False)
+
+                        else: #Fatal alert:
+                            self._shutdown(False)
+
+                        #Raise the alert as an exception
+                        raise TLSRemoteAlert(alert)
+
+                    #If we received a renegotiation attempt...
+                    if recordHeader.type == ContentType.handshake:
+                        subType = p.get(1)
+                        reneg = False
+                        if self.client:
+                            if subType == HandshakeType.hello_request:
+                                reneg = True
+                        else:
+                            if subType == HandshakeType.client_hello:
+                                reneg = True
+                        #Send no_renegotiation, then try again
+                        if reneg:
+                            alertMsg = Alert()
+                            alertMsg.create(AlertDescription.no_renegotiation,
+                                            AlertLevel.warning)
+                            for result in self.sendMessage(alertMsg):
+                                yield result
+                            continue
+
+                    #Otherwise: this is an unexpected record, but neither an
+                    #alert nor renegotiation
+                    for result in self._sendError(\
+                            AlertDescription.unexpected_message,
+                            "received type=%d" % recordHeader.type):
+                        yield result
+
+                break
+
+            #Parse based on content_type
+            if recordHeader.type == ContentType.change_cipher_spec:
+                yield ChangeCipherSpec().parse(p)
+            elif recordHeader.type == ContentType.alert:
+                yield Alert().parse(p)
+            elif recordHeader.type == ContentType.application_data:
+                yield ApplicationData().parse(p)
+            elif recordHeader.type == ContentType.handshake:
+                #Convert secondaryType to tuple, if it isn't already
+                if not isinstance(secondaryType, tuple):
+                    secondaryType = (secondaryType,)
+
+                #If it's a handshake message, check handshake header
+                if recordHeader.ssl2:
+                    subType = p.get(1)
+                    if subType != HandshakeType.client_hello:
+                        for result in self._sendError(\
+                                AlertDescription.unexpected_message,
+                                "Can only handle SSLv2 ClientHello messages"):
+                            yield result
+                    if HandshakeType.client_hello not in secondaryType:
+                        for result in self._sendError(\
+                                AlertDescription.unexpected_message):
+                            yield result
+                    subType = HandshakeType.client_hello
+                else:
+                    subType = p.get(1)
+                    if subType not in secondaryType:
+                        for result in self._sendError(\
+                                AlertDescription.unexpected_message,
+                                "Expecting %s, got %s" % (str(secondaryType), subType)):
+                            yield result
+
+                #Update handshake hashes
+                self._handshakeHashes.update(p.bytes)
+
+                #Parse based on handshake type
+                if subType == HandshakeType.client_hello:
+                    yield ClientHello(recordHeader.ssl2).parse(p)
+                elif subType == HandshakeType.server_hello:
+                    yield ServerHello().parse(p)
+                elif subType == HandshakeType.certificate:
+                    yield Certificate(constructorType).parse(p)
+                elif subType == HandshakeType.certificate_request:
+                    yield CertificateRequest(self.version).parse(p)
+                elif subType == HandshakeType.certificate_verify:
+                    yield CertificateVerify().parse(p)
+                elif subType == HandshakeType.server_key_exchange:
+                    yield ServerKeyExchange(constructorType).parse(p)
+                elif subType == HandshakeType.server_hello_done:
+                    yield ServerHelloDone().parse(p)
+                elif subType == HandshakeType.client_key_exchange:
+                    yield ClientKeyExchange(constructorType, \
+                                            self.version).parse(p)
+                elif subType == HandshakeType.finished:
+                    yield Finished(self.version).parse(p)
+                elif subType == HandshakeType.next_protocol:
+                    yield NextProtocol().parse(p)
+                else:
+                    raise AssertionError()
+
+        #If an exception was raised by a Parser or Message instance:
+        except SyntaxError as e:
+            for result in self._sendError(AlertDescription.decode_error,
+                                         formatExceptionTrace(e)):
+                yield result
