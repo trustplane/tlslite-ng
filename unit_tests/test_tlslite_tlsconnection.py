@@ -338,7 +338,7 @@ class TestTLSConnection(unittest.TestCase):
         record_layer = TLSConnection(None)
         record_layer.version = (3, 0)
 
-        record_layer._calcPendingStates(
+        record_layer.calcPendingStates(
                 CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
                 bytearray(48), bytearray(32), bytearray(32), None)
 
@@ -355,7 +355,7 @@ class TestTLSConnection(unittest.TestCase):
         record_layer = TLSConnection(None)
         record_layer.version = (3, 0)
 
-        record_layer._calcPendingStates(
+        record_layer.calcPendingStates(
                 CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
                 bytearray(48), bytearray(32), bytearray(32), None)
 

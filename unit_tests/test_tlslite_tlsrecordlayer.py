@@ -45,7 +45,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         record_layer = TLSRecordLayer(None)
         record_layer.version = (3, 0)
 
-        record_layer._calcPendingStates(
+        record_layer.calcPendingStates(
                 CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
                 bytearray(48), bytearray(32), bytearray(32), None)
 
@@ -62,7 +62,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         record_layer = TLSRecordLayer(None)
         record_layer.version = (3, 0)
 
-        record_layer._calcPendingStates(
+        record_layer.calcPendingStates(
                 CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
                 bytearray(48), bytearray(32), bytearray(32), None)
 
@@ -398,7 +398,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         master_secret = calcMasterSecret((3,3), premasterSecret,
                 client_hello.random, server_hello.random)
 
-        record_layer._calcPendingStates(
+        record_layer.calcPendingStates(
                 CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
                 master_secret, client_hello.random, server_hello.random,
                 None)
@@ -447,7 +447,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 srv_premaster_secret, srv_client_hello.random,
                 srv_server_hello.random)
 
-        srv_record_layer._calcPendingStates(srv_cipher_suite,
+        srv_record_layer.calcPendingStates(srv_cipher_suite,
                 srv_master_secret, srv_client_hello.random,
                 srv_server_hello.random, None)
 
@@ -628,7 +628,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         master_secret = calcMasterSecret((3,3), premasterSecret,
                 client_hello.random, server_hello.random)
 
-        record_layer._calcPendingStates(
+        record_layer.calcPendingStates(
                 CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
                 master_secret, client_hello.random, server_hello.random,
                 None)

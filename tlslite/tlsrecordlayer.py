@@ -965,8 +965,10 @@ class TLSRecordLayer(object):
         self.allegedSrpUsername = None
         self._refCount = 1
 
-    def _calcPendingStates(self, cipherSuite, masterSecret,
+    def calcPendingStates(self, cipherSuite, masterSecret,
             clientRandom, serverRandom, implementations):
+        """
+        """
         if cipherSuite in CipherSuite.aes128Suites:
             keyLength = 16
             ivLength = 16

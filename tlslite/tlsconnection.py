@@ -630,7 +630,7 @@ class TLSConnection(TLSRecordLayer):
                     yield result
 
             #Calculate pending connection states
-            self._calcPendingStates(session.cipherSuite, 
+            self.calcPendingStates(session.cipherSuite,
                                     session.masterSecret, 
                                     clientRandom, serverHello.random, 
                                     cipherImplementations)                                   
@@ -907,7 +907,7 @@ class TLSConnection(TLSRecordLayer):
 
         masterSecret = calcMasterSecret(self.version, premasterSecret,
                             clientRandom, serverRandom)
-        self._calcPendingStates(cipherSuite, masterSecret, 
+        self.calcPendingStates(cipherSuite, masterSecret,
                                 clientRandom, serverRandom, 
                                 cipherImplementations)
 
@@ -1318,7 +1318,7 @@ class TLSConnection(TLSRecordLayer):
                 self._versionCheck = True
 
                 #Calculate pending connection states
-                self._calcPendingStates(session.cipherSuite, 
+                self.calcPendingStates(session.cipherSuite,
                                         session.masterSecret,
                                         clientHello.random, 
                                         serverHello.random,
@@ -1613,7 +1613,7 @@ class TLSConnection(TLSRecordLayer):
                                       clientRandom, serverRandom)
         
         #Calculate pending connection states
-        self._calcPendingStates(cipherSuite, masterSecret, 
+        self.calcPendingStates(cipherSuite, masterSecret,
                                 clientRandom, serverRandom,
                                 cipherImplementations)
 
