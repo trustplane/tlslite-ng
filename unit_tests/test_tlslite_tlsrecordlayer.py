@@ -135,7 +135,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         for msg in mock_sock.sent:
             self.assertTrue(len(msg) <= 2**14 + 5)
 
-    def test__getMsg(self):
+    def test_recvMessage(self):
 
         mock_sock = MockSocket(
                 bytearray(
@@ -161,16 +161,20 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer = TLSRecordLayer(mock_sock)
 
-        gen = record_layer._getMsg(ContentType.handshake,
-                HandshakeType.server_hello)
+        gen = record_layer.recvMessage()
 
-        message = next(gen)
+        head, parser = next(gen)
+
+        self.assertEqual(head.type, ContentType.handshake)
+        self.assertEqual(parser.get(1), HandshakeType.server_hello)
+
+        message = ServerHello().parse(parser)
 
         self.assertEqual(ServerHello, type(message))
         self.assertEqual((3,3), message.server_version)
         self.assertEqual(0x002f, message.cipher_suite)
 
-    def test__getMsg_with_fragmented_message(self):
+    def test_recvMessage_with_fragmented_message(self):
 
         mock_sock = MockSocket(
                 bytearray(
@@ -200,19 +204,19 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer = TLSRecordLayer(mock_sock)
 
-        gen = record_layer._getMsg(ContentType.handshake,
-                HandshakeType.server_hello)
+        gen = record_layer.recvMessage()
 
-        message = next(gen)
+        head, parser = next(gen)
 
-        if message in (0,1):
-            raise Exception("blocking")
+        self.assertEqual(head.type, ContentType.handshake)
+        self.assertEqual(parser.get(1), HandshakeType.server_hello)
+        message = ServerHello().parse(parser)
 
         self.assertEqual(ServerHello, type(message))
         self.assertEqual((3,3), message.server_version)
         self.assertEqual(0x002f, message.cipher_suite)
 
-    def test__getMsg_with_oversized_message(self):
+    def test_recvMessage_with_oversized_message(self):
 
         mock_sock = MockSocket(
                 bytearray(
@@ -234,12 +238,10 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer = TLSRecordLayer(mock_sock)
 
-        gen = record_layer._getMsg(ContentType.handshake,
-                HandshakeType.server_hello)
+        gen = record_layer.recvMessage()
 
         with self.assertRaises(TLSLocalAlert):
             message = next(gen)
-
 
     def test_full_connection_with_RSA_kex(self):
 
