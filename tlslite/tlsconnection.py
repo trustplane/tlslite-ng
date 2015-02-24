@@ -24,6 +24,7 @@ from .mathtls import *
 from .handshakesettings import HandshakeSettings
 from .utils.tackwrapper import *
 from .verifiers import ServerHelloVerifier
+from .handshakehashes import HandshakeHashes
 
 
 class TLSConnection(TLSRecordLayer):
@@ -51,6 +52,13 @@ class TLSConnection(TLSRecordLayer):
 
     @type resumed: bool
     @ivar resumed: If this connection is based on a resumed session.
+
+    @type allegedSrpUsername: str or None
+    @ivar allegedSrpUsername:  This is set to the SRP username
+    asserted by the client, whether the handshake succeeded or not.
+    If the handshake fails, this can be inspected to determine
+    if a guessing attack is in progress against a particular user
+    account.
     """
 
     def __init__(self, sock):
@@ -66,6 +74,10 @@ class TLSConnection(TLSRecordLayer):
 
         self._readBuffer = bytearray(0)
         self.resumed = False
+
+        #What username did the client claim in his handshake?
+        self.allegedSrpUsername = None
+        self._refCount = 0 #Used to trigger closure
 
     #*********************************************************
     # Client Handshake Functions
@@ -2072,3 +2084,11 @@ class TLSConnection(TLSRecordLayer):
             b = msg.write()
             self._handshakeHashes.update(b)
         return super(TLSConnection, self).sendMessage(msg, randomizeFirstBlock)
+
+    def _handshakeStart(self, client):
+        if not self.closed:
+            raise ValueError("Renegotiation disallowed for security reasons")
+        self._client = client
+        self._handshakeHashes = HandshakeHashes()
+        self.allegedSrpUsername = None
+        self._refCount = 1

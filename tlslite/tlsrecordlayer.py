@@ -65,13 +65,6 @@ class TLSRecordLayer(object):
     @ivar closed: If this connection is closed to writing application_data,
     there still may be some leftover messages in buffer to read.
 
-    @type allegedSrpUsername: str or None
-    @ivar allegedSrpUsername:  This is set to the SRP username
-    asserted by the client, whether the handshake succeeded or not.
-    If the handshake fails, this can be inspected to determine
-    if a guessing attack is in progress against a particular user
-    account.
-
     @type closeSocket: bool
     @ivar closeSocket: If the socket should be closed when the
     connection is closed, defaults to True (writable).
@@ -142,10 +135,6 @@ class TLSRecordLayer(object):
 
         #Is the connection open?
         self.closed = True #read-only
-        self._refCount = 0 #Used to trigger closure
-
-        #What username did the client claim in his handshake?
-        self.allegedSrpUsername = None
 
         #On a call to close(), do we close the socket? (writeable)
         self.closeSocket = True
@@ -954,14 +943,6 @@ class TLSRecordLayer(object):
                 yield result
 
         yield b
-
-    def _handshakeStart(self, client):
-        if not self.closed:
-            raise ValueError("Renegotiation disallowed for security reasons")
-        self._client = client
-        self._handshakeHashes = HandshakeHashes()
-        self.allegedSrpUsername = None
-        self._refCount = 1
 
     def calcPendingStates(self, cipherSuite, masterSecret,
             clientRandom, serverRandom, implementations):
