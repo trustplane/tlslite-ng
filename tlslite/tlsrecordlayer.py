@@ -960,8 +960,6 @@ class TLSRecordLayer(object):
             raise ValueError("Renegotiation disallowed for security reasons")
         self._client = client
         self._handshakeHashes = HandshakeHashes()
-        self._handshakeBuffer = bytearray(0)
-        self._handshakeRecord = None
         self.allegedSrpUsername = None
         self._refCount = 1
 
