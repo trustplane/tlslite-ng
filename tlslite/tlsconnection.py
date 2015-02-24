@@ -1717,7 +1717,7 @@ class TLSConnection(TLSRecordLayer):
 
     def _calcFinished(self, masterSecret, send=True):
         if self.version == (3,0):
-            if (self._client and send) or (not self._client and not send):
+            if (self.client and send) or (not self.client and not send):
                 senderStr = b"\x43\x4C\x4E\x54"
             else:
                 senderStr = b"\x53\x52\x56\x52"
@@ -1727,7 +1727,7 @@ class TLSConnection(TLSRecordLayer):
             return verifyData
 
         elif self.version in ((3,1), (3,2)):
-            if (self._client and send) or (not self._client and not send):
+            if (self.client and send) or (not self.client and not send):
                 label = b"client finished"
             else:
                 label = b"server finished"
@@ -1736,7 +1736,7 @@ class TLSConnection(TLSRecordLayer):
             verifyData = PRF(masterSecret, label, handshakeHashes, 12)
             return verifyData
         elif self.version == (3,3):
-            if (self._client and send) or (not self._client and not send):
+            if (self.client and send) or (not self.client and not send):
                 label = b"client finished"
             else:
                 label = b"server finished"
@@ -2088,7 +2088,7 @@ class TLSConnection(TLSRecordLayer):
     def _handshakeStart(self, client):
         if not self.closed:
             raise ValueError("Renegotiation disallowed for security reasons")
-        self._client = client
+        self.client = client
         self._handshakeHashes = HandshakeHashes()
         self.allegedSrpUsername = None
         self._refCount = 1

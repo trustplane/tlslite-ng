@@ -59,7 +59,7 @@ class Checker(object):
             return
 
         if self.x509Fingerprint:
-            if connection._client:
+            if connection.client:
                 chain = connection.session.serverCertChain
             else:
                 chain = connection.session.clientCertChain

@@ -250,7 +250,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         #
         record_layer = TLSRecordLayer(clnt_sock)
 
-        record_layer._client = True
+        record_layer.client = True
         record_layer.version = (3,3)
 
         client_hello = ClientHello()
@@ -306,7 +306,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         srv_private_key = parsePEMKey(srv_raw_key, private=True)
         srv_cert_chain = X509CertChain([X509().parse(srv_raw_certificate)])
 
-        srv_record_layer._client = False
+        srv_record_layer.client = False
 
         srv_record_layer.version = (3,3)
 
@@ -564,7 +564,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer = TLSRecordLayer(sock)
 
-        record_layer._client=True
+        record_layer.client = True
         record_layer.version = (3,3)
 
         client_hello = ClientHello()

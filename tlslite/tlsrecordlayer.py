@@ -104,6 +104,10 @@ class TLSRecordLayer(object):
     greater than 2**14 (16384) will cause the connection to be dropped by
     RFC compliant peers.
 
+    @type client: bool
+    @ivar client: variable notifying the record layer if it has to behave
+    as a client or a server side of connection.
+
     @sort: __init__, getCipherImplementation, getCipherName
     """
 
@@ -114,7 +118,7 @@ class TLSRecordLayer(object):
         self.session = None
 
         #Am I a client or server?
-        self._client = None
+        self.client = None
 
         #Buffers for processing messages
         self._handshakeBuffer = bytearray(0)
@@ -586,7 +590,7 @@ class TLSRecordLayer(object):
                     if recordHeader.type == ContentType.handshake:
                         subType = p.get(1)
                         reneg = False
-                        if self._client:
+                        if self.client:
                             if subType == HandshakeType.hello_request:
                                 reneg = True
                         else:
@@ -1024,7 +1028,7 @@ class TLSRecordLayer(object):
                                                          implementations)
 
         #Assign new connection states to pending states
-        if self._client:
+        if self.client:
             self._pendingWriteState = clientPendingState
             self._pendingReadState = serverPendingState
         else:
