@@ -310,14 +310,18 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         srv_record_layer.version = (3,3)
 
-        for result in srv_record_layer._getMsg(ContentType.handshake,
-                HandshakeType.client_hello):
-            if result in (0,1):
+        for result in srv_record_layer.recvMessage():
+            if result in (0, 1):
                 raise Exception("blocking socket")
             else:
                 break
+        head, parser = result
 
-        srv_client_hello = result
+        self.assertEqual(head.type, ContentType.handshake)
+        self.assertEqual(parser.get(1), HandshakeType.client_hello)
+        srv_record_layer._handshakeHashes.update(parser.bytes)
+        srv_client_hello = ClientHello(head.ssl2).parse(parser)
+
         self.assertEqual(ClientHello, type(srv_client_hello))
 
         srv_cipher_suite = CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA
@@ -345,34 +349,44 @@ class TestTLSRecordLayer(unittest.TestCase):
         # client part
         #
 
-        for result in record_layer._getMsg(ContentType.handshake,
-                HandshakeType.server_hello):
-            if result in (0,1):
+        for result in record_layer.recvMessage():
+            if result in (0, 1):
                 raise Exception("blocking socket")
             else:
                 break
+        head, parser = result
 
-        server_hello = result
+        self.assertEqual(head.type, ContentType.handshake)
+        self.assertEqual(parser.get(1), HandshakeType.server_hello)
+        record_layer._handshakeHashes.update(parser.bytes)
+        server_hello = ServerHello().parse(parser)
+
         self.assertEqual(ServerHello, type(server_hello))
 
-        for result in record_layer._getMsg(ContentType.handshake,
-                HandshakeType.certificate, CertificateType.x509):
-            if result in (0,1):
+        for result in record_layer.recvMessage():
+            if result in (0, 1):
                 raise Exception("blocking socket")
             else:
                 break
+        head, parser = result
 
-        server_certificate = result
+        self.assertEqual(head.type, ContentType.handshake)
+        self.assertEqual(parser.get(1), HandshakeType.certificate)
+        record_layer._handshakeHashes.update(parser.bytes)
+        server_certificate = Certificate(CertificateType.x509).parse(parser)
         self.assertEqual(Certificate, type(server_certificate))
 
-        for result in record_layer._getMsg(ContentType.handshake,
-                HandshakeType.server_hello_done):
-            if result in (0,1):
+        for result in record_layer.recvMessage():
+            if result in (0, 1):
                 raise Exception("blocking socket")
             else:
                 break
+        head, parser = result
 
-        server_hello_done = result
+        self.assertEqual(head.type, ContentType.handshake)
+        self.assertEqual(parser.get(1), HandshakeType.server_hello_done)
+        record_layer._handshakeHashes.update(parser.bytes)
+        server_hello_done = ServerHelloDone().parse(parser)
         self.assertEqual(ServerHelloDone, type(server_hello_done))
 
         public_key = server_certificate.certChain.getEndEntityPublicKey()
@@ -427,15 +441,19 @@ class TestTLSRecordLayer(unittest.TestCase):
         # server part
         #
 
-        for result in srv_record_layer._getMsg(ContentType.handshake,
-                HandshakeType.client_key_exchange,
-                srv_cipher_suite):
-            if result in (0,1):
+        for result in srv_record_layer.recvMessage():
+            if result in (0, 1):
                 raise Exception("blocking socket")
             else:
                 break
+        head, parser = result
 
-        srv_client_key_exchange = result
+        self.assertEqual(head.type, ContentType.handshake)
+        self.assertEqual(parser.get(1), HandshakeType.client_key_exchange)
+        srv_record_layer._handshakeHashes.update(parser.bytes)
+
+        srv_client_key_exchange = ClientKeyExchange(srv_cipher_suite,
+                srv_record_layer.version).parse(parser)
 
         srv_premaster_secret = srv_private_key.decrypt(
                 srv_client_key_exchange.encryptedPreMasterSecret)
@@ -451,13 +469,15 @@ class TestTLSRecordLayer(unittest.TestCase):
                 srv_master_secret, srv_client_hello.random,
                 srv_server_hello.random, None)
 
-        for result in srv_record_layer._getMsg(ContentType.change_cipher_spec):
-            if result in (0,1):
-                raise Exception("blocking socket")
+        for result in srv_record_layer.recvMessage():
+            if result in (0, 1):
+                raise Exception("Blocking socket")
             else:
                 break
+        head, parser = result
 
-        srv_change_cipher_spec = result
+        self.assertEqual(head.type, ContentType.change_cipher_spec)
+        srv_change_cipher_spec = ChangeCipherSpec().parse(parser)
         self.assertEqual(ChangeCipherSpec, type(srv_change_cipher_spec))
 
         srv_record_layer.changeReadState()
@@ -466,13 +486,17 @@ class TestTLSRecordLayer(unittest.TestCase):
         srv_verify_data = PRF_1_2(srv_master_secret, b"client finished",
                 srv_handshakeHashes, 12)
 
-        for result in srv_record_layer._getMsg(ContentType.handshake,
-                HandshakeType.finished):
-            if result in (0,1):
+        for result in srv_record_layer.recvMessage():
+            if result in (0, 1):
                 raise Exception("blocking socket")
             else:
                 break
-        srv_finished = result
+        head, parser = result
+
+        self.assertEqual(head.type, ContentType.handshake)
+        self.assertEqual(parser.get(1), HandshakeType.finished)
+        srv_record_layer._handshakeHashes.update(parser.bytes)
+        srv_finished = Finished(srv_record_layer.version).parse(parser)
         self.assertEqual(Finished, type(srv_finished))
         self.assertEqual(srv_verify_data, srv_finished.verify_data)
 
@@ -502,13 +526,15 @@ class TestTLSRecordLayer(unittest.TestCase):
         # client part
         #
 
-        for result in record_layer._getMsg(ContentType.change_cipher_spec):
-            if result in (0,1):
+        for result in record_layer.recvMessage():
+            if result in (0, 1):
                 raise Exception("blocking socket")
             else:
                 break
+        head, parser = result
 
-        change_cipher_spec = result
+        self.assertEqual(head.type, ContentType.change_cipher_spec)
+        change_cipher_spec = ChangeCipherSpec().parse(parser)
         self.assertEqual(ChangeCipherSpec, type(change_cipher_spec))
 
         record_layer.changeReadState()
@@ -517,14 +543,17 @@ class TestTLSRecordLayer(unittest.TestCase):
         server_verify_data = PRF_1_2(master_secret, b'server finished',
                 handshake_hashes, 12)
 
-        for result in record_layer._getMsg(ContentType.handshake,
-                HandshakeType.finished):
-            if result in (0,1):
+        for result in record_layer.recvMessage():
+            if result in (0, 1):
                 raise Exception("blocking socket")
             else:
                 break
+        head, parser = result
 
-        server_finished = result
+        self.assertEqual(head.type, ContentType.handshake)
+        self.assertEqual(parser.get(1), HandshakeType.finished)
+        server_finished = Finished(record_layer.version).parse(parser)
+
         self.assertEqual(Finished, type(server_finished))
         self.assertEqual(server_verify_data, server_finished.verify_data)
 
@@ -539,13 +568,15 @@ class TestTLSRecordLayer(unittest.TestCase):
                 break
 
         # try recieving data
-        for result in srv_record_layer._getMsg(ContentType.application_data):
+        for result in srv_record_layer.recvMessage():
             if result in (0, 1):
                 raise Exception("blocking socket")
             else:
                 break
+        head, parser = result
+        self.assertEqual(head.type, ContentType.application_data)
+        data = ApplicationData().parse(parser).write()
 
-        data = result.write()
         self.assertEqual(data, bytearray(b'text\n'))
 
         record_layer._shutdown(True)
