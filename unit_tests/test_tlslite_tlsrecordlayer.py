@@ -49,7 +49,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
                 bytearray(48), bytearray(32), bytearray(32), None)
 
-        record_layer._changeWriteState()
+        record_layer.changeWriteState()
 
         self.assertEqual('aes128', record_layer.getCipherName())
 
@@ -66,7 +66,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
                 bytearray(48), bytearray(32), bytearray(32), None)
 
-        record_layer._changeWriteState()
+        record_layer.changeWriteState()
 
         if tlslite.tlsrecordlayer.m2cryptoLoaded:
             self.assertEqual('openssl', record_layer.getCipherImplementation())
@@ -409,7 +409,7 @@ class TestTLSRecordLayer(unittest.TestCase):
             else:
                 break
 
-        record_layer._changeWriteState()
+        record_layer.changeWriteState()
 
         handshake_hashes = record_layer._handshakeHashes.digest((3, 3))
         verify_data = PRF_1_2(master_secret, b'client finished',
@@ -460,7 +460,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         srv_change_cipher_spec = result
         self.assertEqual(ChangeCipherSpec, type(srv_change_cipher_spec))
 
-        srv_record_layer._changeReadState()
+        srv_record_layer.changeReadState()
 
         srv_handshakeHashes = srv_record_layer._handshakeHashes.digest((3, 3))
         srv_verify_data = PRF_1_2(srv_master_secret, b"client finished",
@@ -482,7 +482,7 @@ class TestTLSRecordLayer(unittest.TestCase):
             else:
                 break
 
-        srv_record_layer._changeWriteState()
+        srv_record_layer.changeWriteState()
 
         srv_handshakeHashes = srv_record_layer._handshakeHashes.digest((3, 3))
         srv_verify_data = PRF_1_2(srv_master_secret, b"server finished",
@@ -511,7 +511,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         change_cipher_spec = result
         self.assertEqual(ChangeCipherSpec, type(change_cipher_spec))
 
-        record_layer._changeReadState()
+        record_layer.changeReadState()
 
         handshake_hashes = record_layer._handshakeHashes.digest((3, 3))
         server_verify_data = PRF_1_2(master_secret, b'server finished',
@@ -639,7 +639,7 @@ class TestTLSRecordLayer(unittest.TestCase):
             else:
                 break
 
-        record_layer._changeWriteState()
+        record_layer.changeWriteState()
 
         handshake_hashes = record_layer._handshake_sha256.digest()
         verify_data = PRF_1_2(master_secret, b'client finished',
@@ -661,7 +661,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         change_cipher_spec = result
         self.assertEqual(ChangeCipherSpec, type(change_cipher_spec))
 
-        record_layer._changeReadState()
+        record_layer.changeReadState()
 
         handshake_hashes = record_layer._handshake_sha256.digest()
         server_verify_data = PRF_1_2(master_secret, b'server finished',

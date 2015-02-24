@@ -1057,10 +1057,24 @@ class TLSRecordLayer(object):
             #residue to create the IV for each sent block)
             self.fixedIVBlock = getRandomBytes(ivLength)
 
-    def _changeWriteState(self):
+    def changeWriteState(self):
+        """
+        Change the current cipher status to the pending cipher status for
+        write operations.
+
+        This should be used after a call to L{calcPendingStates} was
+        performed and directly after sending a L{ChangeCipherSpec} message.
+        """
         self._writeState = self._pendingWriteState
         self._pendingWriteState = _ConnectionState()
 
-    def _changeReadState(self):
+    def changeReadState(self):
+        """
+        Change the current cipher status to the pending cipher status for
+        read operations.
+
+        This should be used only after a call to L{calcPendingStates} was
+        performed and directly after receiving a L{ChangeCipherSpec} message.
+        """
         self._readState = self._pendingReadState
         self._pendingReadState = _ConnectionState()

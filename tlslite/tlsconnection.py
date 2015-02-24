@@ -1639,7 +1639,7 @@ class TLSConnection(TLSRecordLayer):
             yield result
 
         #Switch to pending write state
-        self._changeWriteState()
+        self.changeWriteState()
 
         if nextProto is not None:
             nextProtoMsg = NextProtocol().create(nextProto)
@@ -1669,7 +1669,7 @@ class TLSConnection(TLSRecordLayer):
                 yield result
 
         #Switch to pending read state
-        self._changeReadState()
+        self.changeReadState()
 
         #Server Finish - Are we waiting for a next protocol echo? 
         if expect_next_protocol:

@@ -342,7 +342,7 @@ class TestTLSConnection(unittest.TestCase):
                 CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
                 bytearray(48), bytearray(32), bytearray(32), None)
 
-        record_layer._changeWriteState()
+        record_layer.changeWriteState()
 
         self.assertEqual('aes128', record_layer.getCipherName())
 
@@ -359,7 +359,7 @@ class TestTLSConnection(unittest.TestCase):
                 CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA,
                 bytearray(48), bytearray(32), bytearray(32), None)
 
-        record_layer._changeWriteState()
+        record_layer.changeWriteState()
 
         if tlslite.tlsconnection.m2cryptoLoaded:
             self.assertEqual('openssl', record_layer.getCipherImplementation())
