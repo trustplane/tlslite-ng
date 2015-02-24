@@ -97,7 +97,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         self.assertEqual('TLS 1.2', record_layer.getVersionName())
 
-    def test__sendMsg(self):
+    def test_sendMessage(self):
         mock_sock = mock.create_autospec(socket.socket)
 
         record_layer = TLSRecordLayer(mock_sock)
@@ -105,12 +105,12 @@ class TestTLSRecordLayer(unittest.TestCase):
         client_hello = ClientHello().create((3,3), bytearray(32), bytearray(0),
                 [])
 
-        gen = record_layer._sendMsg(client_hello)
+        gen = record_layer.sendMessage(client_hello)
         next(gen)
 
         self.assertEqual(1, mock_sock.send.call_count)
 
-    def test__sendMsg_with_large_message(self):
+    def test_sendMessage_with_large_message(self):
 
         mock_sock = MockSocket(bytearray(0))
 
@@ -119,7 +119,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         client_hello = ClientHello().create((3,3), bytearray(32), bytearray(0),
                 [x for x in range(2**15-1)])
 
-        gen = record_layer._sendMsg(client_hello)
+        gen = record_layer.sendMessage(client_hello)
 
         for result in gen:
             if result in (0,1):
@@ -259,7 +259,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 None, None, False, False, None)
 
         record_layer._handshakeHashes.update(client_hello.write())
-        for result in record_layer._sendMsg(client_hello):
+        for result in record_layer.sendMessage(client_hello):
             if result in (0,1):
                 raise Exception("blocking socket")
 
@@ -334,7 +334,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         srv_msgs.append(ServerHelloDone())
         for msg in srv_msgs:
             srv_record_layer._handshakeHashes.update(msg.write())
-        for result in srv_record_layer._sendMsgs(srv_msgs):
+        for result in srv_record_layer.sendMessages(srv_msgs):
             if result in (0,1):
                 raise Exception("blocking socket")
             else:
@@ -389,7 +389,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         client_key_exchange.createRSA(encryptedPreMasterSecret)
 
         record_layer._handshakeHashes.update(client_key_exchange.write())
-        for result in record_layer._sendMsg(client_key_exchange):
+        for result in record_layer.sendMessage(client_key_exchange):
             if result in (0,1):
                 raise Exception("blocking socket")
             else:
@@ -403,7 +403,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 master_secret, client_hello.random, server_hello.random,
                 None)
 
-        for result in record_layer._sendMsg(ChangeCipherSpec()):
+        for result in record_layer.sendMessage(ChangeCipherSpec()):
             if result in (0,1):
                 raise Exception("blocking socket")
             else:
@@ -417,7 +417,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         finished = Finished((3,3)).create(verify_data)
         record_layer._handshakeHashes.update(finished.write())
-        for result in record_layer._sendMsg(finished):
+        for result in record_layer.sendMessage(finished):
             if result in (0,1):
                 raise Exception("blocking socket")
             else:
@@ -476,7 +476,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         self.assertEqual(Finished, type(srv_finished))
         self.assertEqual(srv_verify_data, srv_finished.verify_data)
 
-        for result in srv_record_layer._sendMsg(ChangeCipherSpec()):
+        for result in srv_record_layer.sendMessage(ChangeCipherSpec()):
             if result in (0,1):
                 raise Exception("blocking socket")
             else:
@@ -490,7 +490,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         srv_server_finished = Finished((3, 3)).create(srv_verify_data)
         srv_record_layer._handshakeHashes.update(srv_server_finished.write())
-        for result in srv_record_layer._sendMsg(srv_server_finished):
+        for result in srv_record_layer.sendMessage(srv_server_finished):
             if result in (0,1):
                 raise Exception("blocking socket")
             else:
@@ -531,7 +531,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         record_layer.closed = False
 
         # try sending data
-        for result in record_layer._sendMsg(ApplicationData().create(\
+        for result in record_layer.sendMessage(ApplicationData().create(\
                 bytearray(b'text\n'))):
             if result in (0, 1):
                 raise Exception("blocking socket")
@@ -572,7 +572,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 bytearray(0), [CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA],
                 None, None, False, False, None)
 
-        for result in record_layer._sendMsg(client_hello):
+        for result in record_layer.sendMessage(client_hello):
             if result in (0,1):
                 raise Exception("blocking socket")
 
@@ -619,7 +619,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 (3,3))
         client_key_exchange.createRSA(encryptedPreMasterSecret)
 
-        for result in record_layer._sendMsg(client_key_exchange):
+        for result in record_layer.sendMessage(client_key_exchange):
             if result in (0,1):
                 raise Exception("blocking socket")
             else:
@@ -633,7 +633,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 master_secret, client_hello.random, server_hello.random,
                 None)
 
-        for result in record_layer._sendMsg(ChangeCipherSpec()):
+        for result in record_layer.sendMessage(ChangeCipherSpec()):
             if result in (0,1):
                 raise Exception("blocking socket")
             else:
@@ -646,7 +646,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 handshake_hashes, 12)
 
         finished = Finished((3,3)).create(verify_data)
-        for result in record_layer._sendMsg(finished):
+        for result in record_layer.sendMessage(finished):
             if result in (0,1):
                 raise Exception("blocking socket")
             else:

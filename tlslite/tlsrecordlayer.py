@@ -232,19 +232,29 @@ class TLSRecordLayer(object):
 
     def _sendError(self, alertDescription, errorStr=None):
         alert = Alert().create(alertDescription, AlertLevel.fatal)
-        for result in self._sendMsg(alert):
+        for result in self.sendMessage(alert):
             yield result
         self._shutdown(False)
         raise TLSLocalAlert(alert, errorStr)
 
-    def _sendMsgs(self, msgs):
+    def sendMessages(self, msgs):
         randomizeFirstBlock = True
         for msg in msgs:
-            for result in self._sendMsg(msg, randomizeFirstBlock):
+            for result in self.sendMessage(msg, randomizeFirstBlock):
                 yield result
             randomizeFirstBlock = True
 
-    def _sendMsg(self, msg, randomizeFirstBlock = True):
+    def sendMessage(self, msg, randomizeFirstBlock = True):
+        """
+        Generator which will try to fragment, encrypt and then send
+        a message.
+
+        @type msg: Alert, HandshakeMsg or ApplicationData
+        @param msg: message to send
+        @rtype: generator
+        @return: generator that will finish if the sending was successful or
+        0 or 1 if the read or write to socket would block.
+        """
         #Whenever we're connected and asked to send an app data message,
         #we first send the first byte of the message.  This prevents
         #an attacker from launching a chosen-plaintext attack based on
@@ -254,7 +264,7 @@ class TLSRecordLayer(object):
                 and self._writeState.encContext.isBlockCipher \
                 and isinstance(msg, ApplicationData):
             msgFirstByte = msg.splitFirstByte()
-            for result in self._sendMsg(msgFirstByte,
+            for result in self.sendMessage(msgFirstByte,
                                        randomizeFirstBlock = False):
                 yield result
 
@@ -281,7 +291,7 @@ class TLSRecordLayer(object):
                     return self.data
 
             msgFragment = FakeMsg(msg.contentType, newB)
-            for result in self._sendMsg(msgFragment,
+            for result in self.sendMessage(msgFragment,
                     randomizeFirstBlock=False):
                 yield result
 
@@ -566,7 +576,7 @@ class TLSRecordLayer(object):
                                 alertMsg = Alert()
                                 alertMsg.create(AlertDescription.close_notify,
                                                 AlertLevel.warning)
-                                for result in self._sendMsg(alertMsg):
+                                for result in self.sendMessage(alertMsg):
                                     yield result
                             except socket.error:
                                 pass
@@ -598,7 +608,7 @@ class TLSRecordLayer(object):
                             alertMsg = Alert()
                             alertMsg.create(AlertDescription.no_renegotiation,
                                             AlertLevel.warning)
-                            for result in self._sendMsg(alertMsg):
+                            for result in self.sendMessage(alertMsg):
                                 yield result
                             continue
 

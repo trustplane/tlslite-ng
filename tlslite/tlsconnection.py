@@ -556,7 +556,7 @@ class TLSConnection(TLSRecordLayer):
                                reqTack, nextProtos is not None, 
                                serverName,
                                extensions=extensions)
-        for result in self._sendMsg(clientHello):
+        for result in self.sendMessage(clientHello):
             yield result
         yield clientHello
 
@@ -755,7 +755,7 @@ class TLSConnection(TLSRecordLayer):
         premasterSecret = numberToByteArray(S)
 
         #Send ClientKeyExchange
-        for result in self._sendMsg(\
+        for result in self.sendMessage(\
                 ClientKeyExchange(cipherSuite).createSRP(A)):
             yield result
         yield (premasterSecret, serverCertChain, tackExt)
@@ -834,7 +834,7 @@ class TLSConnection(TLSRecordLayer):
                         yield result
 
                 clientCertificate.create(clientCertChain)
-            for result in self._sendMsg(clientCertificate):
+            for result in self.sendMessage(clientCertificate):
                 yield result
         else:
             #The server didn't request client auth, so we
@@ -847,7 +847,7 @@ class TLSConnection(TLSRecordLayer):
         clientKeyExchange = ClientKeyExchange(cipherSuite,
                                               self.version)
         clientKeyExchange.createRSA(encryptedPreMasterSecret)
-        for result in self._sendMsg(clientKeyExchange):
+        for result in self.sendMessage(clientKeyExchange):
             yield result
 
         #If client authentication was requested and we have a
@@ -866,7 +866,7 @@ class TLSConnection(TLSRecordLayer):
             signedBytes = privateKey.sign(verifyBytes)
             certificateVerify = CertificateVerify()
             certificateVerify.create(signedBytes)
-            for result in self._sendMsg(certificateVerify):
+            for result in self.sendMessage(certificateVerify):
                 yield result
         yield (premasterSecret, serverCertChain, clientCertChain, tackExt)
 
@@ -892,7 +892,7 @@ class TLSConnection(TLSRecordLayer):
         dh_Yc = powMod(dh_g, dh_Xc, dh_p)
         
         #Send ClientKeyExchange
-        for result in self._sendMsg(\
+        for result in self.sendMessage(\
                 ClientKeyExchange(cipherSuite, self.version).createDH(dh_Yc)):
             yield result
             
@@ -1311,7 +1311,7 @@ class TLSConnection(TLSRecordLayer):
                 serverHello.create(self.version, getRandomBytes(32),
                                    session.sessionID, session.cipherSuite,
                                    CertificateType.x509, None, None)
-                for result in self._sendMsg(serverHello):
+                for result in self.sendMessage(serverHello):
                     yield result
 
                 #From here on, the client's messages must have right version
@@ -1408,7 +1408,7 @@ class TLSConnection(TLSRecordLayer):
             msgs.append(certificateMsg)
         msgs.append(serverKeyExchange)
         msgs.append(ServerHelloDone())
-        for result in self._sendMsgs(msgs):
+        for result in self.sendMessages(msgs):
             yield result
 
         #From here on, the client's messages must have the right version
@@ -1457,7 +1457,7 @@ class TLSConnection(TLSRecordLayer):
         elif reqCert:
             msgs.append(CertificateRequest(self.version))
         msgs.append(ServerHelloDone())
-        for result in self._sendMsgs(msgs):
+        for result in self.sendMessages(msgs):
             yield result
 
         #From here on, the client's messages must have the right version
@@ -1577,7 +1577,7 @@ class TLSConnection(TLSRecordLayer):
         msgs.append(serverHello)
         msgs.append(serverKeyExchange)
         msgs.append(ServerHelloDone())
-        for result in self._sendMsgs(msgs):
+        for result in self.sendMessages(msgs):
             yield result
         
         #From here on, the client's messages must have the right version
@@ -1635,7 +1635,7 @@ class TLSConnection(TLSRecordLayer):
 
     def _sendFinished(self, masterSecret, nextProto=None):
         #Send ChangeCipherSpec
-        for result in self._sendMsg(ChangeCipherSpec()):
+        for result in self.sendMessage(ChangeCipherSpec()):
             yield result
 
         #Switch to pending write state
@@ -1643,7 +1643,7 @@ class TLSConnection(TLSRecordLayer):
 
         if nextProto is not None:
             nextProtoMsg = NextProtocol().create(nextProto)
-            for result in self._sendMsg(nextProtoMsg):
+            for result in self.sendMessage(nextProtoMsg):
                 yield result
 
         #Calculate verification data
@@ -1653,7 +1653,7 @@ class TLSConnection(TLSRecordLayer):
 
         #Send Finished message under new state
         finished = Finished(self.version).create(verifyData)
-        for result in self._sendMsg(finished):
+        for result in self.sendMessage(finished):
             yield result
 
     def _getFinished(self, masterSecret, expect_next_protocol=False, nextProto=None):
@@ -1747,7 +1747,7 @@ class TLSConnection(TLSRecordLayer):
                     except TLSAuthenticationError:
                         alert = Alert().create(AlertDescription.close_notify,
                                                AlertLevel.fatal)
-                        for result in self._sendMsg(alert):
+                        for result in self.sendMessage(alert):
                             yield result
                         raise
             except GeneratorExit:
@@ -1892,7 +1892,7 @@ class TLSConnection(TLSRecordLayer):
                 raise TLSClosedConnectionError("attempt to write to closed connection")
 
             applicationData = ApplicationData().create(bytearray(s))
-            for result in self._sendMsg(applicationData, \
+            for result in self.sendMessage(applicationData, \
                                         randomizeFirstBlock=True):
                 yield result
         except GeneratorExit:
@@ -1949,7 +1949,7 @@ class TLSConnection(TLSRecordLayer):
         self._refCount -= 1
         if self._refCount == 0 and not self.closed:
             try:
-                for result in self._sendMsg(Alert().create(\
+                for result in self.sendMessage(Alert().create(\
                         AlertDescription.close_notify, AlertLevel.warning)):
                     yield result
                 alert = None
@@ -2066,9 +2066,9 @@ class TLSConnection(TLSRecordLayer):
         """Not implement in TLS Lite."""
         raise NotImplementedError()
 
-    def _sendMsg(self, msg, randomizeFirstBlock = True):
+    def sendMessage(self, msg, randomizeFirstBlock = True):
         # TODO: ignore handshake_request
         if msg.contentType == ContentType.handshake:
             b = msg.write()
             self._handshakeHashes.update(b)
-        return super(TLSConnection, self)._sendMsg(msg, randomizeFirstBlock)
+        return super(TLSConnection, self).sendMessage(msg, randomizeFirstBlock)
