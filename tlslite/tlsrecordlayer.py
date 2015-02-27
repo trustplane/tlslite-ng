@@ -124,9 +124,6 @@ class TLSRecordLayer(object):
         self._handshakeBuffer = bytearray(0)
         self._handshakeRecord = None
 
-        #Handshake digests
-        self._handshakeHashes = HandshakeHashes()
-
         #TLS Protocol Version
         self.version = (0,0) #read-only
         self._versionCheck = False #Once we choose a version, this is True

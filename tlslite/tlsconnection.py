@@ -79,6 +79,9 @@ class TLSConnection(TLSRecordLayer):
         self.allegedSrpUsername = None
         self._refCount = 0 #Used to trigger closure
 
+        #Handshake digests
+        self._handshakeHashes = HandshakeHashes()
+
     #*********************************************************
     # Client Handshake Functions
     #*********************************************************
