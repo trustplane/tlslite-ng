@@ -59,6 +59,12 @@ class TLSConnection(TLSRecordLayer):
     If the handshake fails, this can be inspected to determine
     if a guessing attack is in progress against a particular user
     account.
+
+    @type session: L{tlslite.Session.Session}
+    @ivar session: The session corresponding to this connection.
+
+    Due to TLS session resumption, multiple connections can correspond
+    to the same underlying session.
     """
 
     def __init__(self, sock):
@@ -81,6 +87,9 @@ class TLSConnection(TLSRecordLayer):
 
         #Handshake digests
         self._handshakeHashes = HandshakeHashes()
+
+        #My session object (Session instance; read-only)
+        self.session = None
 
     #*********************************************************
     # Client Handshake Functions
@@ -2252,3 +2261,10 @@ class TLSConnection(TLSRecordLayer):
             for result in self._sendError(AlertDescription.decode_error,
                                          formatExceptionTrace(e)):
                 yield result
+
+    def _shutdown(self, resumable):
+        super(TLSConnection, self)._shutdown(resumable)
+
+        #Even if resumable is False, we'll never toggle this on
+        if not resumable and self.session:
+            self.session.resumable = False

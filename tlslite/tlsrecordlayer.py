@@ -50,12 +50,6 @@ class TLSRecordLayer(object):
     @type sock: socket.socket
     @ivar sock: The underlying socket object.
 
-    @type session: L{tlslite.Session.Session}
-    @ivar session: The session corresponding to this connection.
-
-    Due to TLS session resumption, multiple connections can correspond
-    to the same underlying session.
-
     @type version: tuple
     @ivar version: The TLS version being used for this connection.
 
@@ -113,9 +107,6 @@ class TLSRecordLayer(object):
 
     def __init__(self, sock):
         self.sock = sock
-
-        #My session object (Session instance; read-only)
-        self.session = None
 
         #Am I a client or server?
         self.client = None
@@ -206,7 +197,7 @@ class TLSRecordLayer(object):
      # Public Functions END
      #*********************************************************
 
-    def _shutdown(self, resumable):
+    def _shutdown(self, resumable=None):
         self._writeState = _ConnectionState()
         self._readState = _ConnectionState()
         self.version = (0,0)
@@ -214,11 +205,6 @@ class TLSRecordLayer(object):
         self.closed = True
         if self.closeSocket:
             self.sock.close()
-
-        #Even if resumable is False, we'll never toggle this on
-        if not resumable and self.session:
-            self.session.resumable = False
-
 
     def _sendError(self, alertDescription, errorStr=None):
         alert = Alert().create(alertDescription, AlertLevel.fatal)
