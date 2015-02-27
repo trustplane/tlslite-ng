@@ -26,6 +26,7 @@ from tlslite.x509 import X509
 from tlslite.x509certchain import X509CertChain
 from tlslite.utils.keyfactory import parsePEMKey
 from tlslite.utils.codec import Parser
+from tlslite.handshakehashes import HandshakeHashes
 from unit_tests.mocksock import MockSocket
 
 from tlslite.tlsconnection import TLSConnection
@@ -260,7 +261,8 @@ class TestTLSRecordLayer(unittest.TestCase):
                 bytearray(0), [CipherSuite.TLS_RSA_WITH_AES_128_CBC_SHA],
                 None, None, False, False, None)
 
-        record_layer._handshakeHashes.update(client_hello.write())
+        handshakeHashes = HandshakeHashes()
+        handshakeHashes.update(client_hello.write())
         for result in record_layer.sendMessage(client_hello):
             if result in (0,1):
                 raise Exception("blocking socket")
@@ -270,6 +272,7 @@ class TestTLSRecordLayer(unittest.TestCase):
         #
 
         srv_record_layer = TLSRecordLayer(srv_sock)
+        srv_handshakeHashes = HandshakeHashes()
 
         srv_raw_certificate = str(
             "-----BEGIN CERTIFICATE-----\n"\
@@ -321,7 +324,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         self.assertEqual(head.type, ContentType.handshake)
         self.assertEqual(parser.get(1), HandshakeType.client_hello)
-        srv_record_layer._handshakeHashes.update(parser.bytes)
+        srv_handshakeHashes.update(parser.bytes)
         srv_client_hello = ClientHello(head.ssl2).parse(parser)
 
         self.assertEqual(ClientHello, type(srv_client_hello))
@@ -339,7 +342,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 create(srv_cert_chain))
         srv_msgs.append(ServerHelloDone())
         for msg in srv_msgs:
-            srv_record_layer._handshakeHashes.update(msg.write())
+            srv_handshakeHashes.update(msg.write())
         for result in srv_record_layer.sendMessages(srv_msgs):
             if result in (0,1):
                 raise Exception("blocking socket")
@@ -360,7 +363,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         self.assertEqual(head.type, ContentType.handshake)
         self.assertEqual(parser.get(1), HandshakeType.server_hello)
-        record_layer._handshakeHashes.update(parser.bytes)
+        handshakeHashes.update(parser.bytes)
         server_hello = ServerHello().parse(parser)
 
         self.assertEqual(ServerHello, type(server_hello))
@@ -374,7 +377,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         self.assertEqual(head.type, ContentType.handshake)
         self.assertEqual(parser.get(1), HandshakeType.certificate)
-        record_layer._handshakeHashes.update(parser.bytes)
+        handshakeHashes.update(parser.bytes)
         server_certificate = Certificate(CertificateType.x509).parse(parser)
         self.assertEqual(Certificate, type(server_certificate))
 
@@ -387,7 +390,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         self.assertEqual(head.type, ContentType.handshake)
         self.assertEqual(parser.get(1), HandshakeType.server_hello_done)
-        record_layer._handshakeHashes.update(parser.bytes)
+        handshakeHashes.update(parser.bytes)
         server_hello_done = ServerHelloDone().parse(parser)
         self.assertEqual(ServerHelloDone, type(server_hello_done))
 
@@ -404,7 +407,7 @@ class TestTLSRecordLayer(unittest.TestCase):
                 (3,3))
         client_key_exchange.createRSA(encryptedPreMasterSecret)
 
-        record_layer._handshakeHashes.update(client_key_exchange.write())
+        handshakeHashes.update(client_key_exchange.write())
         for result in record_layer.sendMessage(client_key_exchange):
             if result in (0,1):
                 raise Exception("blocking socket")
@@ -427,12 +430,12 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer.changeWriteState()
 
-        handshake_hashes = record_layer._handshakeHashes.digest((3, 3))
+        handshake_hashes = handshakeHashes.digest((3, 3))
         verify_data = PRF_1_2(master_secret, b'client finished',
                 handshake_hashes, 12)
 
         finished = Finished((3,3)).create(verify_data)
-        record_layer._handshakeHashes.update(finished.write())
+        handshakeHashes.update(finished.write())
         for result in record_layer.sendMessage(finished):
             if result in (0,1):
                 raise Exception("blocking socket")
@@ -452,7 +455,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         self.assertEqual(head.type, ContentType.handshake)
         self.assertEqual(parser.get(1), HandshakeType.client_key_exchange)
-        srv_record_layer._handshakeHashes.update(parser.bytes)
+        srv_handshakeHashes.update(parser.bytes)
 
         srv_client_key_exchange = ClientKeyExchange(srv_cipher_suite,
                 srv_record_layer.version).parse(parser)
@@ -484,9 +487,9 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         srv_record_layer.changeReadState()
 
-        srv_handshakeHashes = srv_record_layer._handshakeHashes.digest((3, 3))
+        srv_handshakeHashDigest = srv_handshakeHashes.digest((3, 3))
         srv_verify_data = PRF_1_2(srv_master_secret, b"client finished",
-                srv_handshakeHashes, 12)
+                srv_handshakeHashDigest, 12)
 
         for result in srv_record_layer.recvMessage():
             if result in (0, 1):
@@ -497,7 +500,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         self.assertEqual(head.type, ContentType.handshake)
         self.assertEqual(parser.get(1), HandshakeType.finished)
-        srv_record_layer._handshakeHashes.update(parser.bytes)
+        srv_handshakeHashes.update(parser.bytes)
         srv_finished = Finished(srv_record_layer.version).parse(parser)
         self.assertEqual(Finished, type(srv_finished))
         self.assertEqual(srv_verify_data, srv_finished.verify_data)
@@ -510,12 +513,12 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         srv_record_layer.changeWriteState()
 
-        srv_handshakeHashes = srv_record_layer._handshakeHashes.digest((3, 3))
+        srv_handshakeHashDigest = srv_handshakeHashes.digest((3, 3))
         srv_verify_data = PRF_1_2(srv_master_secret, b"server finished",
-                srv_handshakeHashes, 12)
+                srv_handshakeHashDigest, 12)
 
         srv_server_finished = Finished((3, 3)).create(srv_verify_data)
-        srv_record_layer._handshakeHashes.update(srv_server_finished.write())
+        srv_handshakeHashes.update(srv_server_finished.write())
         for result in srv_record_layer.sendMessage(srv_server_finished):
             if result in (0,1):
                 raise Exception("blocking socket")
@@ -541,7 +544,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer.changeReadState()
 
-        handshake_hashes = record_layer._handshakeHashes.digest((3, 3))
+        handshake_hashes = handshakeHashes.digest((3, 3))
         server_verify_data = PRF_1_2(master_secret, b'server finished',
                 handshake_hashes, 12)
 
