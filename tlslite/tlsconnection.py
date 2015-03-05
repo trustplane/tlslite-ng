@@ -584,7 +584,7 @@ class TLSConnection(TLSRecordLayer):
                 yield result
 
         #Check ServerHello
-        if serverHello.tackExt:            
+        if serverHello.tackExt:
             if not serverHello.tackExt.verifySignatures():
                 for result in self._sendError(\
                     AlertDescription.decrypt_error,

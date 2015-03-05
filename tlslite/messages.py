@@ -243,7 +243,7 @@ class ClientHello(HandshakeMsg):
         if self.extensions is None:
             return []
         else:
-            return [x.ext_type for x in self.extensions]
+            return [i.ext_type for i in self.extensions]
 
     def addExtension(self, ext):
         """
@@ -637,7 +637,7 @@ class ServerHello(HandshakeMsg):
         if self.extensions is None:
             return []
         else:
-            return [x.ext_type for x in self.extensions]
+            return [i.ext_type for i in self.extensions]
 
     def addExtension(self, ext):
         """
