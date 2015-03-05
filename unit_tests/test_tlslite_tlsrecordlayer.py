@@ -342,7 +342,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer._changeWriteState()
 
-        handshake_hashes = record_layer._handshake_sha256.digest()
+        handshake_hashes = record_layer._handshakeHashes.digest((3, 3))
         verify_data = PRF_1_2(master_secret, b'client finished',
                 handshake_hashes, 12)
 
@@ -392,7 +392,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         srv_record_layer._changeReadState()
 
-        srv_handshakeHashes = srv_record_layer._handshake_sha256.digest()
+        srv_handshakeHashes = srv_record_layer._handshakeHashes.digest((3, 3))
         srv_verify_data = PRF_1_2(srv_master_secret, b"client finished",
                 srv_handshakeHashes, 12)
 
@@ -414,7 +414,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         srv_record_layer._changeWriteState()
 
-        srv_handshakeHashes = srv_record_layer._handshake_sha256.digest()
+        srv_handshakeHashes = srv_record_layer._handshakeHashes.digest((3, 3))
         srv_verify_data = PRF_1_2(srv_master_secret, b"server finished",
                 srv_handshakeHashes, 12)
 
@@ -442,7 +442,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer._changeReadState()
 
-        handshake_hashes = record_layer._handshake_sha256.digest()
+        handshake_hashes = record_layer._handshakeHashes.digest((3, 3))
         server_verify_data = PRF_1_2(master_secret, b'server finished',
                 handshake_hashes, 12)
 
@@ -559,7 +559,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer._changeWriteState()
 
-        handshake_hashes = record_layer._handshake_sha256.digest()
+        handshake_hashes = record_layer._handshakeHashes.digest((3, 3))
         verify_data = PRF_1_2(master_secret, b'client finished',
                 handshake_hashes, 12)
 
@@ -581,7 +581,7 @@ class TestTLSRecordLayer(unittest.TestCase):
 
         record_layer._changeReadState()
 
-        handshake_hashes = record_layer._handshake_sha256.digest()
+        handshake_hashes = record_layer._handshakeHashes.digest((3, 3))
         server_verify_data = PRF_1_2(master_secret, b'server finished',
                 handshake_hashes, 12)
 
