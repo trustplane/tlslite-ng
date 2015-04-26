@@ -271,6 +271,15 @@ class CipherSuite:
     md5Suites.append(TLS_RSA_WITH_RC4_128_MD5)
 
     @staticmethod
+    def filterForVersion(suites, minVersion, maxVersion):
+        """ Returns a copy of suites after removing any entries which are not
+        enabled by any version of TLS between minVersion and maxVersion. """
+        excludeSuites = []
+        if maxVersion < (3, 3):
+            excludeSuites += CipherSuite.sha256Suites
+        return [s for s in suites if s not in excludeSuites]
+
+    @staticmethod
     def _filterSuites(suites, settings):
         macNames = settings.macNames
         cipherNames = settings.cipherNames
@@ -394,6 +403,8 @@ class Fault:
     badPadding = 302
     genericFaults = list(range(300,303))
 
+    ignoreVersionForCipher = 400
+
     faultAlerts = {\
         badUsername: (AlertDescription.unknown_psk_identity, \
                       AlertDescription.bad_record_mac),\
@@ -404,7 +415,9 @@ class Fault:
         badVerifyMessage: (AlertDescription.decrypt_error,),\
         badFinished: (AlertDescription.decrypt_error,),\
         badMAC: (AlertDescription.bad_record_mac,),\
-        badPadding: (AlertDescription.bad_record_mac,)
+        badPadding: (AlertDescription.bad_record_mac,),\
+        ignoreVersionForCipher: (AlertDescription.illegal_parameter,\
+                                 AlertDescription.handshake_failure)
         }
 
     faultNames = {\
@@ -416,5 +429,6 @@ class Fault:
         badVerifyMessage: "bad verify message",\
         badFinished: "bad finished message",\
         badMAC: "bad MAC",\
-        badPadding: "bad padding"
+        badPadding: "bad padding",\
+        ignoreVersionForCipher: "ignore version for cipher"
         }
