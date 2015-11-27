@@ -234,6 +234,11 @@ class VarListExtension(TLSExtension):
             return
         super(VarListExtension, self).__setattr__(name, value)
 
+    def __repr__(self):
+        return "{0}({1}={2!r})".format(self.__class__.__name__,
+                                       self._fieldName,
+                                       self._internalList)
+
 class SNIExtension(TLSExtension):
     """
     Class for handling Server Name Indication (server_name) extension from
@@ -451,39 +456,6 @@ class SNIExtension(TLSExtension):
         p.stopLengthCheck()
 
         return self
-
-class ClientCertTypeExtension(VarListExtension):
-    """
-    This class handles the Certificate Type extension (variant sent by client)
-    defined in RFC 6091.
-
-    @type extType: int
-    @ivar extType: numeric type of Certificate Type extension, i.e. 9
-
-    @type extData: bytearray
-    @ivar extData: raw representation of the extension data
-
-    @type certTypes: list of int
-    @ivar certTypes: list of certificate type identifiers (each one byte long)
-    """
-
-    def __init__(self):
-        """
-        Create an instance of ClientCertTypeExtension
-
-        See also: L{create} and L{parse}
-        """
-        super(ClientCertTypeExtension, self).__init__(1, 1, 'certTypes', \
-                ExtensionType.cert_type)
-
-    def __repr__(self):
-        """
-        Return programmer-centric representation of extension
-
-        @rtype: str
-        """
-        return "ClientCertTypeExtension(certTypes={0!r})"\
-                .format(self.certTypes)
 
 class ServerCertTypeExtension(TLSExtension):
     """
@@ -931,43 +903,22 @@ class TACKExtension(TLSExtension):
 
         return self
 
-class SupportedGroupsExtension(VarListExtension):
-    """
-    Client side list of supported groups of (EC)DHE key exchage.
+SupportedGroupsExtension = type('SupportedGroupsExtension', (VarListExtension,),
+                                {"__init__":lambda x:super(x.__class__, x).\
+                                     __init__(2, 2,
+                                              'groups',
+                                              ExtensionType.supported_groups)})
 
-    See RFC4492, RFC7027 and RFC-ietf-tls-negotiated-ff-dhe-10
+ClientCertTypeExtension = type('ClientCertTypeExtension', (VarListExtension,),
+                                {"__init__":lambda x:super(x.__class__, x).\
+                                     __init__(1, 1,
+                                              'certTypes',
+                                              ExtensionType.cert_type)})
 
-    @type groups: int
-    @ivar groups: list of groups that the client supports
-    """
-
-    def __init__(self):
-        """Create instance of class"""
-        super(SupportedGroupsExtension, self).__init__(2, 2, 'groups', \
-            ExtensionType.supported_groups)
-
-    def __repr__(self):
-        """Return representation of class"""
-        return "SupportedGroupsExtension(groups={0!r})".format(self.groups)
-
-class ECPointFormatsExtension(VarListExtension):
-    """
-    Client side list of supported ECC point formats.
-
-    See RFC4492.
-
-    @type formats: list of int
-    @ivar formats: list of point formats supported by peer
-    """
-
-    def __init__(self):
-        """Create instance of class"""
-        super(ECPointFormatsExtension, self).__init__(1, 1, 'formats', \
-                ExtensionType.ec_point_formats)
-
-    def __repr__(self):
-        """Return a representation of class"""
-        return "ECPointFormatsExtension(formats={0!r})".format(self.formats)
+ECPointFormatsExtension = type('ECPointFormatsExtension', (VarListExtension,),
+                               {"__init__":lambda x:super(x.__class__, x).\
+                                     __init__(1, 1, 'formats',
+                                              ExtensionType.ec_point_formats)})
 
 class SignatureAlgorithmsExtension(TLSExtension):
 
