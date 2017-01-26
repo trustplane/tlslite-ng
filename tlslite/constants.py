@@ -490,6 +490,8 @@ class CipherSuite:
     # RFC 4492 - ECC Cipher Suites for TLS
     TLS_ECDHE_RSA_WITH_NULL_SHA = 0xC010
     ietfNames[0xC010] = 'TLS_ECDHE_RSA_WITH_NULL_SHA'
+    TLS_ECDHE_RSA_WITH_RC4_128_SHA = 0xC011
+    ietfNames[0xC011] = 'TLS_ECDHE_RSA_WITH_RC4_128_SHA'
     TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA = 0xC012
     ietfNames[0xC012] = 'TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA'
     TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA = 0xC013
@@ -613,6 +615,7 @@ class CipherSuite:
 
     # RC4 128 stream cipher
     rc4Suites = []
+    rc4Suites.append(TLS_ECDHE_RSA_WITH_RC4_128_SHA)
     rc4Suites.append(TLS_DH_ANON_WITH_RC4_128_MD5)
     rc4Suites.append(TLS_RSA_WITH_RC4_128_SHA)
     rc4Suites.append(TLS_RSA_WITH_RC4_128_MD5)
@@ -648,6 +651,7 @@ class CipherSuite:
     shaSuites.append(TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)
     shaSuites.append(TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA)
     shaSuites.append(TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA)
+    shaSuites.append(TLS_ECDHE_RSA_WITH_RC4_128_SHA)
     shaSuites.append(TLS_ECDHE_RSA_WITH_NULL_SHA)
     shaSuites.append(TLS_ECDH_ANON_WITH_AES_256_CBC_SHA)
     shaSuites.append(TLS_ECDH_ANON_WITH_AES_128_CBC_SHA)
@@ -849,6 +853,7 @@ class CipherSuite:
     ecdheCertSuites.append(TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA)
     ecdheCertSuites.append(TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA)
     ecdheCertSuites.append(TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA)
+    ecdheCertSuites.append(TLS_ECDHE_RSA_WITH_RC4_128_SHA)
     ecdheCertSuites.append(TLS_ECDHE_RSA_WITH_NULL_SHA)
 
     @classmethod
