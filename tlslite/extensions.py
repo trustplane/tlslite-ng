@@ -9,7 +9,8 @@ and ServerHello messages.
 from __future__ import generators
 from .utils.codec import Writer, Parser
 from collections import namedtuple
-from .constants import NameType, ExtensionType, CertificateStatusType
+from .constants import NameType, ExtensionType, CertificateStatusType, \
+        SignatureAlgorithm, HashAlgorithm
 from .errors import TLSInternalError
 
 class TLSExtension(object):
@@ -1012,6 +1013,22 @@ class SignatureAlgorithmsExtension(TLSExtension):
                                                            ExtensionType.
                                                            signature_algorithms)
         self.sigalgs = None
+
+    def _repr_sigalgs(self):
+        """Return a text representation of sigalgs field."""
+        if self.sigalgs is None:
+            return "None"
+        else:
+            return "[{0}]".format(", "
+                                  .join("({0}, {1})"
+                                        .format(HashAlgorithm.toStr(has),
+                                                SignatureAlgorithm.toStr(alg))
+                                        for has, alg in self.sigalgs))
+
+    def __repr__(self):
+        """Return a text representation of the extension."""
+        return "SignatureAlgorithmsExtension(sigalgs={0})".format(
+                self._repr_sigalgs())
 
     @property
     def extData(self):
