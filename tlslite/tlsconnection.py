@@ -1374,11 +1374,13 @@ class TLSConnection(TLSRecordLayer):
                                                  dhGroups)
             elif cipherSuite in CipherSuite.ecdheCertSuites:
                 acceptedCurves = self._curveNamesToList(settings)
+                defaultCurve = getattr(GroupName, settings.defaultCurve)
                 keyExchange = ECDHE_RSAKeyExchange(cipherSuite,
                                                    clientHello,
                                                    serverHello,
                                                    privateKey,
-                                                   acceptedCurves)
+                                                   acceptedCurves,
+                                                   defaultCurve)
             else:
                 assert(False)
             for result in self._serverCertKeyExchange(clientHello, serverHello, 
@@ -1399,8 +1401,10 @@ class TLSConnection(TLSRecordLayer):
                                              dhGroups)
             else:
                 acceptedCurves = self._curveNamesToList(settings)
+                defaultCurve = getattr(GroupName, settings.defaultCurve)
                 keyExchange = AECDHKeyExchange(cipherSuite, clientHello,
-                                               serverHello, acceptedCurves)
+                                               serverHello, acceptedCurves,
+                                               defaultCurve)
             for result in self._serverAnonKeyExchange(serverHello, keyExchange,
                                                       cipherSuite):
                 if result in (0,1): yield result
@@ -1521,7 +1525,8 @@ class TLSConnection(TLSRecordLayer):
         #Check if there's intersection between supported curves by client and
         #server
         client_groups = clientHello.getExtension(ExtensionType.supported_groups)
-        group_intersect = []
+        # if there is no extension, then allow P-256
+        group_intersect = [GroupName.secp256r1]
         # if there is no extension, then allow DHE
         ffgroup_intersect = [GroupName.ffdhe2048]
         if client_groups is not None:
