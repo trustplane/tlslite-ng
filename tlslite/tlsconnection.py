@@ -900,7 +900,8 @@ class TLSConnection(TLSRecordLayer):
             #Check the server's signature, if the server chose an authenticated
             # PFS-enabled ciphersuite
             if serverKeyExchange:
-                validSigAlgs = self._sigHashesToList(settings)
+                validSigAlgs = self._sigHashesToList(settings,
+                                                     certList=serverCertChain)
                 try:
                     KeyExchange.verifyServerKeyExchange(serverKeyExchange,
                                                         publicKey,
@@ -986,7 +987,8 @@ class TLSConnection(TLSRecordLayer):
         #if client auth was requested and we have a private key, send a
         #CertificateVerify
         if certificateRequest and privateKey:
-            validSigAlgs = self._sigHashesToList(settings, privateKey)
+            validSigAlgs = self._sigHashesToList(settings, privateKey,
+                                                 clientCertChain)
             try:
                 certificateVerify = KeyExchange.makeCertificateVerify(
                     self.version,
@@ -1750,7 +1752,8 @@ class TLSConnection(TLSRecordLayer):
                                      verifierDB)
 
         try:
-            sigHash = self._pickServerKeyExchangeSig(settings, clientHello)
+            sigHash = self._pickServerKeyExchangeSig(settings, clientHello,
+                                                     serverCertChain)
         except TLSHandshakeFailure as alert:
             for result in self._sendError(
                     AlertDescription.handshake_failure,
@@ -1807,7 +1810,8 @@ class TLSConnection(TLSRecordLayer):
         msgs.append(serverHello)
         msgs.append(Certificate(CertificateType.x509).create(serverCertChain))
         try:
-            sigHashAlg = self._pickServerKeyExchangeSig(settings, clientHello)
+            sigHashAlg = self._pickServerKeyExchangeSig(settings, clientHello,
+                                                        serverCertChain)
         except TLSHandshakeFailure as alert:
             for result in self._sendError(
                     AlertDescription.handshake_failure,
@@ -2121,7 +2125,7 @@ class TLSConnection(TLSRecordLayer):
             raise
 
     @staticmethod
-    def _pickServerKeyExchangeSig(settings, clientHello):
+    def _pickServerKeyExchangeSig(settings, clientHello, certList=None):
         """Pick a hash that matches most closely the supported ones"""
         hashAndAlgsExt = clientHello.getExtension(\
                 ExtensionType.signature_algorithms)
@@ -2131,7 +2135,8 @@ class TLSConnection(TLSRecordLayer):
             # sha1 should be picked
             return "sha1"
 
-        supported = TLSConnection._sigHashesToList(settings)
+        supported = TLSConnection._sigHashesToList(settings,
+                                                   certList=certList)
 
         for schemeID in supported:
             if schemeID in hashAndAlgsExt.sigalgs:
@@ -2147,11 +2152,19 @@ class TLSConnection(TLSRecordLayer):
         raise TLSHandshakeFailure("No common signature algorithms")
 
     @staticmethod
-    def _sigHashesToList(settings, privateKey=None):
+    def _sigHashesToList(settings, privateKey=None, certList=None):
         """Convert list of valid signature hashes to array of tuples"""
+        certType = None
+        if certList:
+            certType = certList.x509List[0].certAlg
+
         sigAlgs = []
         for schemeName in settings.rsaSchemes:
             for hashName in settings.rsaSigHashes:
+                # rsa-pss certificates can't be used to make PKCS#1 v1.5
+                # signatures
+                if certType == "rsa-pss" and schemeName == "pkcs1":
+                    continue
                 try:
                     # 1024 bit keys are too small to create valid
                     # rsa-pss-SHA512 signatures
